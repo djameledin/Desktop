@@ -18,27 +18,46 @@ jobs:
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Create RDP User (user / password)
+      - name: Create RDP User
         run: |
+          Add-Type -AssemblyName System.Security
+          $chars = @{
+              Upper = [char[]](65..90)
+              Lower = [char[]](97..122)
+              Number = [char[]](48..57)
+              Special = [char[]](33..47 + 58..64 + 91..96 + 123..126)
+          }
+          $passwordArray = @()
+          $passwordArray += $chars.Upper | Get-Random -Count 2
+          $passwordArray += $chars.Lower | Get-Random -Count 2
+          $passwordArray += $chars.Number | Get-Random -Count 2
+          $passwordArray += $chars.Special | Get-Random -Count 2
+          $password = (-join ($passwordArray | Sort-Object { Get-Random }))
+          $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+
           if (-not (Get-LocalUser -Name "user" -ErrorAction SilentlyContinue)) {
-              $securePass = ConvertTo-SecureString "password" -AsPlainText -Force
               New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
           }
+
           if (-not (Get-LocalGroupMember -Group "Administrators" -Member "user" -ErrorAction SilentlyContinue)) {
               Add-LocalGroupMember -Group "Administrators" -Member "user"
           }
+
           if (-not (Get-LocalGroupMember -Group "Remote Desktop Users" -Member "user" -ErrorAction SilentlyContinue)) {
               Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
           }
-          echo "RDP_CREDS=User: user | Password: password" >> $env:GITHUB_ENV
+
+          echo "RDP_CREDS=User: user | Password: $password" >> $env:GITHUB_ENV
 
       - name: Customize Windows UI & Set Hostname
         run: |
           # Hide desktop icons
           Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
           Stop-Process -Name explorer -Force
-          # Disable Test Mode watermark (session-only, no reboot)
+
+          # Disable Test Mode watermark (session-only)
           bcdedit /set testsigning off || Write-Host "Cannot set Test Mode in this session"
+
           # Set hostname for this session
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
           $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
@@ -53,12 +72,14 @@ jobs:
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
+
           # Install Steam
           $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
           $installer = "$env:TEMP\SteamSetup.exe"
           Invoke-WebRequest -Uri $steamUrl -OutFile $installer
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
-          # Set screen resolution using QRes
+
+          # Download QRes and set screen resolution
           Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/latest/download" -OutFile "$env:TEMP\QRes.zip"
           Expand-Archive "$env:TEMP\QRes.zip" -DestinationPath "$env:TEMP\QRes" -Force
           $qresExe = Get-ChildItem "$env:TEMP\QRes" -Recurse -Filter "QRes.exe" | Select-Object -First 1
@@ -89,7 +110,7 @@ jobs:
           Write-Host "Address: $env:TAILSCALE_IP"
           Write-Host "Hostname: $env:HOSTNAME"
           Write-Host "Username: user"
-          Write-Host "Password: password"
+          Write-Host "Password: $env:RDP_CREDS"
           while ($true) {
               Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
               Start-Sleep -Seconds 300
