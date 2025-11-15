@@ -64,23 +64,23 @@ jobs:
           $hostname = "$osName/$osUpdate"
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
 
-      - name: Install Tailscale, Steam & Set Screen Resolution
+      - name: Install Tailscale
         run: |
-          #Install Tailscale
           $exePath = "$env:TEMP\tailscale.exe"
-          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-1.90.6.exe" -OutFile $exePath -UseBasicParsing -MaximumRedirection 5
-          if (-Not (Test-Path $exePath)) { Write-Error "Tailscale download failed"; exit 1 }
-
-          # Run EXE silently
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-ipn.exe" -OutFile $exePath -UseBasicParsing -MaximumRedirection 5
+          if (-not (Test-Path $exePath)) { Write-Error "Tailscale download failed"; exit 1 }
           Start-Process -FilePath $exePath -ArgumentList "/quiet" -Wait
 
-          # Install Steam
+      - name: Install Steam
+        run: |
           $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
           $installer = "$env:TEMP\SteamSetup.exe"
           Invoke-WebRequest -Uri $steamUrl -OutFile $installer
+          if (-not (Test-Path $installer)) { Write-Error "Steam download failed"; exit 1 }
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
 
-          # Download QRes and set resolution
+      - name: Set Screen Resolution
+        run: |
           Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/latest/download" -OutFile "$env:TEMP\QRes.zip"
           Expand-Archive "$env:TEMP\QRes.zip" -DestinationPath "$env:TEMP\QRes" -Force
           $qresExe = Get-ChildItem "$env:TEMP\QRes" -Recurse -Filter "QRes.exe" | Select-Object -First 1
