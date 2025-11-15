@@ -66,12 +66,13 @@ jobs:
 
       - name: Install Programs & Set Screen Resolution
         run: |
-          # Install Tailscale using Windows PowerShell 5.1 to avoid PowerShell 7 issues
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          $installerPath = "$env:TEMP\tailscale.msi"
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList "-Command", "Start-Process msiexec.exe -ArgumentList '/i `"$installerPath`" /quiet /norestart' -Wait" -Wait
-          Remove-Item $installerPath -Force
+         # Install Tailscale
+         $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+         $installerPath = "$env:TEMP\tailscale.msi"
+         Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
+         Start-Process msiexec.exe -ArgumentList "/i `"$installerPath`" /quiet /norestart" -Wait
+         Remove-Item $installerPath -Force
+
 
           # Install Steam
           $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
