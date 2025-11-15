@@ -1,10 +1,10 @@
-name: RDP
+name: Windows environment
 
 on:
   workflow_dispatch:
 
 jobs:
-  secure-rdp:
+  remote-desktop:
     runs-on: windows-latest
     timeout-minutes: 3600
 
