@@ -41,20 +41,6 @@ jobs:
           echo "$USER:$PASSWORD" | sudo chpasswd
           echo "RDP User Created: Username=$USER ; Password=$PASSWORD"
 
-      - name: Install Brave Browser
-        run: |
-          echo "Installing Brave Browser..."
-          sudo apt install -y apt-transport-https curl
-          sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser.list
-          sudo apt update
-          sudo apt install -y brave-browser
-          echo "Brave installed"
-
-          # Set Brave as default browser
-          sudo update-alternatives --set x-www-browser /usr/bin/brave-browser
-          sudo update-alternatives --set gnome-www-browser /usr/bin/brave-browser
-
       - name: Install & Start Tailscale
         run: |
           echo "Setting up Tailscale..."
@@ -86,6 +72,16 @@ jobs:
 
           echo "Tailscale Connected to $TAILSCALE_IP"
 
+      - name: Install Brave Browser
+        run: |
+          echo "Installing Brave Browser..."
+          sudo apt install -y apt-transport-https curl
+          sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser.list
+          sudo apt update
+          sudo apt install -y brave-browser
+          echo "Brave installed"
+          
       - name: Keep RDP Session Alive
         run: |
           echo "Keeping session alive..."
