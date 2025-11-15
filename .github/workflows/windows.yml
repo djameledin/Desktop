@@ -14,10 +14,8 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
-
           netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
-
           Restart-Service -Name TermService -Force
 
       - name: Create RDP User (user / password)
@@ -26,10 +24,9 @@ jobs:
           New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "user"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
-
           echo "RDP_CREDS=User: user | Password: password" >> $env:GITHUB_ENV
 
-      - name: Customize Windows UI, Disable Test Mode & Set Hostname
+      - name: Customize Windows UI & Disable Test Mode & Set Hostname
         id: ui_testmode
         run: |
           # Hide desktop icons
@@ -42,11 +39,14 @@ jobs:
 
           # Determine Windows version for hostname
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
-          $osUpdate = (Get-ComputerInfo -Property "OsBuildLabEx").OsBuildLabEx.Split('.')[3]  # مثال: 22H2
+          $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
           $hostname = "$osName/$osUpdate"
 
           # Change hostname
           Rename-Computer -NewName $hostname -Force
+
+          # Save hostname for later steps
+          echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
 
           # Flag for reboot detection
           New-Item -ItemType File -Path "$env:TEMP\reboot_pending.flag" -Force
@@ -61,7 +61,7 @@ jobs:
           if (Test-Path $flag) {
               Write-Host "Resuming workflow after reboot..."
               Remove-Item $flag
-              Start-Sleep -Seconds 15  # allow services to stabilize
+              Start-Sleep -Seconds 15
           }
 
           # Install Tailscale
@@ -77,18 +77,16 @@ jobs:
           Invoke-WebRequest -Uri $steamUrl -OutFile $installer
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
 
-          # Download QRes to set screen resolution
+          # Download QRes and set screen resolution
           Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/latest/download" -OutFile "$env:TEMP\QRes.zip"
           Expand-Archive "$env:TEMP\QRes.zip" -DestinationPath "$env:TEMP\QRes" -Force
-
-          # Set resolution to 1920x1080
-          & "$env:TEMP\QRes\QRes.exe" /x:1920 /y:1080
+          $qresExe = Get-ChildItem "$env:TEMP\QRes" -Recurse -Filter "QRes.exe" | Select-Object -First 1
+          & $qresExe.FullName /x:1920 /y:1080
 
       - name: Establish Tailscale Connection
         if: always()
         run: |
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=$hostname
-          
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=$env:HOSTNAME
           $tsIP = $null
           $retries = 0
           while (-not $tsIP -and $retries -lt 10) {
@@ -96,12 +94,10 @@ jobs:
               Start-Sleep -Seconds 5
               $retries++
           }
-
           if (-not $tsIP) {
               Write-Error "Tailscale IP not assigned. Exiting."
               exit 1
           }
-
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
       - name: Verify RDP Accessibility
@@ -119,10 +115,9 @@ jobs:
         if: always()
         run: |
           Write-Host "Address: $env:TAILSCALE_IP"
-          Write-Host "Hostname: $hostname"
+          Write-Host "Hostname: $env:HOSTNAME"
           Write-Host "Username: user"
           Write-Host "Password: password"
-          
           while ($true) {
               Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
               Start-Sleep -Seconds 300
