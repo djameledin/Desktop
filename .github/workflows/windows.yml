@@ -68,7 +68,7 @@ jobs:
         run: |
           #Install Tailscale
           $exePath = "$env:TEMP\tailscale.exe"
-          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-ipn.exe" -OutFile $exePath -UseBasicParsing -MaximumRedirection 5
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-1.90.6.exe" -OutFile $exePath -UseBasicParsing -MaximumRedirection 5
           if (-Not (Test-Path $exePath)) { Write-Error "Tailscale download failed"; exit 1 }
 
           # Run EXE silently
