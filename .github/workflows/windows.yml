@@ -55,24 +55,29 @@ jobs:
           Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
           Stop-Process -Name explorer -Force
 
-          # Disable Test Mode watermark (session-only)
+          # Disable Test Mode watermark
           bcdedit /set testsigning off || Write-Host "Cannot set Test Mode in this session"
 
-          # Set hostname for this session
+          # Set hostname
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
           $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
           $hostname = "$osName/$osUpdate"
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
 
-      - name: Install Programs & Set Screen Resolution
+      - name: Install Tailscale, Steam & Set Screen Resolution
         run: |
-         # Install Tailscale
-         $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-         $installerPath = "$env:TEMP\tailscale.msi"
-         Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-         Start-Process msiexec.exe -ArgumentList "/i `"$installerPath`" /quiet /norestart" -Wait
-         Remove-Item $installerPath -Force
+          # Download and install Tailscale reliably
+          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+          $installerPath = "$env:TEMP\tailscale.msi"
+          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath -UseBasicParsing -MaximumRedirection 5
 
+          if (-Not (Test-Path $installerPath)) {
+              Write-Error "Download failed, file not found."
+              exit 1
+          }
+
+          Start-Process "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList "-Command", "Start-Process msiexec.exe -ArgumentList '/i `"$installerPath`" /quiet /norestart' -Wait" -Wait
+          Remove-Item $installerPath -Force
 
           # Install Steam
           $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
@@ -80,7 +85,7 @@ jobs:
           Invoke-WebRequest -Uri $steamUrl -OutFile $installer
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
 
-          # Download QRes and set screen resolution
+          # Download QRes and set resolution
           Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/latest/download" -OutFile "$env:TEMP\QRes.zip"
           Expand-Archive "$env:TEMP\QRes.zip" -DestinationPath "$env:TEMP\QRes" -Force
           $qresExe = Get-ChildItem "$env:TEMP\QRes" -Recurse -Filter "QRes.exe" | Select-Object -First 1
