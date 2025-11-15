@@ -89,10 +89,14 @@ jobs:
 
       - name: Set Screen Resolution
         run: |
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/latest/download" -OutFile "$env:TEMP\QRes.zip"
-          Expand-Archive "$env:TEMP\QRes.zip" -DestinationPath "$env:TEMP\QRes" -Force
-          $qresExe = Get-ChildItem "$env:TEMP\QRes" -Recurse -Filter "QRes.exe" | Select-Object -First 1
-          & $qresExe.FullName /x:1920 /y:1080
+          $zipPath = "$env:TEMP\QRes.zip"
+          $extractPath = "$env:TEMP\QRes"
+          Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/QRes/1.0.9/QRes.zip/download" -OutFile $zipPath
+          if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
+          Expand-Archive $zipPath -DestinationPath $extractPath -Force
+          $qresExe = Get-ChildItem $extractPath -Recurse -Filter "QRes.exe" | Select-Object -First 1
+          if (-not $qresExe) { Write-Error "QRes.exe not found"; exit 1 }
+          Start-Process -FilePath $qresExe.FullName -ArgumentList "/x:1920 /y:1080" -Wait
 
       - name: Install Steam
         run: |
