@@ -4,43 +4,56 @@ on:
   workflow_dispatch:
 
 jobs:
-  secure-rdp:
+  clean-rdp:
     runs-on: ubuntu-latest
     timeout-minutes: 999999
 
     steps:
-      - name: Update system
+      - name: Update System
         run: |
           echo "Updating system..."
-          echo "------------------------"
           sudo apt-get update -y
           sudo apt-get upgrade -y
           echo "System updated successfully"
-          echo ""
 
-      - name: Install GNOME Desktop and xRDP
+      - name: Install GNOME Desktop Minimal and xRDP
         run: |
-          echo "Installing GNOME + xRDP..."
-          echo "------------------------------"
-          sudo apt-get install -y ubuntu-desktop gnome-session gdm3 xrdp
+          echo "Installing GNOME Desktop Minimal + xRDP..."
+          sudo apt-get install -y ubuntu-desktop-minimal gnome-session gdm3 xrdp
           sudo systemctl enable xrdp
           sudo systemctl start xrdp
           sudo ufw allow 3389/tcp || true
           echo "gnome-session" > ~/.xsession
-          echo "Desktop & RDP installed"
-          echo ""
 
-      - name: Create temporary RDP user
+          # Disable animations to speed up GNOME
+          gsettings set org.gnome.desktop.interface enable-animations false
+
+          # Remove heavy packages to free resources
+          sudo apt-get remove --purge -y thunderbird libreoffice-* && sudo apt-get autoremove -y
+
+          echo "Minimal GNOME Desktop & RDP installed"
+
+      - name: Create Temporary RDP User
         run: |
           USER="user"
           PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
           sudo useradd -m -s /bin/bash $USER
           echo "$USER:$PASSWORD" | sudo chpasswd
+          echo "RDP User Created: Username=$USER ; Password=$PASSWORD"
 
-          echo "RDP User Created"
-          echo ""
-          echo " Username : $USER ; Password : $PASSWORD"
-          echo ""
+      - name: Install Brave Browser
+        run: |
+          echo "Installing Brave Browser..."
+          sudo apt install -y apt-transport-https curl
+          sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser.list
+          sudo apt update
+          sudo apt install -y brave-browser
+          echo "Brave installed"
+
+          # Set Brave as default browser
+          sudo update-alternatives --set x-www-browser /usr/bin/brave-browser
+          sudo update-alternatives --set gnome-www-browser /usr/bin/brave-browser
 
       - name: Install & Start Tailscale
         run: |
@@ -72,28 +85,10 @@ jobs:
           echo "TAILSCALE_IP=$TAILSCALE_IP" >> $GITHUB_ENV
 
           echo "Tailscale Connected to $TAILSCALE_IP"
-          echo ""
 
-      - name: Install Steam
+      - name: Keep RDP Session Alive
         run: |
-          echo "Installing Steam..."
-          echo "----------------------------"
-          sudo dpkg --add-architecture i386
-          sudo apt update
-          sudo apt install -y steam
-          echo "Steam installed"
-          echo ""
-
-      - name: RDP Connection Info
-        run: |
-          echo ""
-          echo " IP Address : $TAILSCALE_IP ; Username: user"
-          echo ""
-
-      - name: Keep Runner Alive
-        run: |
-          echo "Keeping RDP session alive..."
-          echo "------------------------------------"
+          echo "Keeping session alive..."
           while true; do
             echo "[ $(date) ] RDP Session Active..."
             sleep 300
