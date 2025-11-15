@@ -18,7 +18,7 @@ jobs:
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Create RDP User
+      - name: Create RDP User (user / strong password)
         run: |
           Add-Type -AssemblyName System.Security
           $chars = @{
@@ -66,11 +66,11 @@ jobs:
 
       - name: Install Programs & Set Screen Resolution
         run: |
-          # Install Tailscale
+          # Install Tailscale (use cmd /c msiexec to avoid PowerShell7 issues)
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
+          cmd /c "msiexec /i `"$installerPath`" /quiet /norestart"
           Remove-Item $installerPath -Force
 
           # Install Steam
