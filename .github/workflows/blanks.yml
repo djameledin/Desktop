@@ -1,0 +1,53 @@
+name: Linux environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  secure-rdp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 999999
+
+    steps:
+      - name: Update system
+        run: |
+          sudo apt-get update -y
+          sudo apt-get upgrade -y
+
+      - name: Install GNOME Desktop and xRDP
+        run: |
+          sudo apt-get install -y ubuntu-desktop gnome-session gdm3 xrdp
+          sudo systemctl enable xrdp
+          sudo systemctl start xrdp
+          sudo ufw allow 3389/tcp || true
+
+          echo "gnome-session" > ~/.xsession
+
+      - name: Create temporary user
+        run: |
+          USER="rdp"
+          PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
+          sudo useradd -m -s /bin/bash $USER
+          echo "$USER:$PASSWORD" | sudo chpasswd
+          echo "RDP Username: $USER"
+          echo "RDP Password: $PASSWORD"
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-${{ github.run_id }}
+          TAILSCALE_IP=$(tailscale ip -4)
+          echo "Tailscale IP: $TAILSCALE_IP"
+
+      - name: Install Steam
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install -y steam
+
+      - name: Keep Runner Alive
+        run: |
+          while true; do
+            echo "[$(date)] RDP Session Active..."
+            sleep 300
+          done
