@@ -36,7 +36,7 @@ jobs:
       - name: Create Temporary RDP User
         run: |
           USER="user"
-          PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
+          PASSWORD="user"
           sudo useradd -m -s /bin/bash $USER
           echo "$USER:$PASSWORD" | sudo chpasswd
           echo "RDP User Created: Username=$USER ; Password=$PASSWORD"
