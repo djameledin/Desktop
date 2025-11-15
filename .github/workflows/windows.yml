@@ -54,14 +54,29 @@ jobs:
               exit 1
           }
 
-      - name: Install Tailscale
+      - name: Install Tailscale & Steam
         run: |
+          Write-Host "Downloading Tailscale..."
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
           
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
+
+          Write-Host "Tailscale installed successfully!"
+
+          Write-Host "Downloading Steam..."
+          $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
+          $installer = "$env:TEMP\SteamSetup.exe"
+
+          Invoke-WebRequest -Uri $steamUrl -OutFile $installer
+
+          Write-Host "Installing Steam silently..."
+          Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+
+          Write-Host "Steam installed successfully!"
+          
 
       - name: Establish Tailscale Connection
         run: |
@@ -82,7 +97,7 @@ jobs:
               exit 1
           }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
-      
+          
       - name: Verify RDP Accessibility
         run: |
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
@@ -97,11 +112,9 @@ jobs:
 
       - name: Maintain Connection
         run: |
-          Write-Host "`n=== RDP ACCESS ==="
           Write-Host "Address: $env:TAILSCALE_IP"
           Write-Host "Username: RDP"
           Write-Host "Password: $(echo $env:RDP_CREDS)"
-          Write-Host "==================`n"
           
           # Keep runner active indefinitely (or until manually cancelled)
           while ($true) {
