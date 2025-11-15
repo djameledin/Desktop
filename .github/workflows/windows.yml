@@ -66,18 +66,13 @@ jobs:
 
       - name: Install Tailscale, Steam & Set Screen Resolution
         run: |
-          # Download and install Tailscale reliably
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          $installerPath = "$env:TEMP\tailscale.msi"
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath -UseBasicParsing -MaximumRedirection 5
+          #Install Tailscale
+          $exePath = "$env:TEMP\tailscale.exe"
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-ipn.exe" -OutFile $exePath -UseBasicParsing -MaximumRedirection 5
+          if (-Not (Test-Path $exePath)) { Write-Error "Tailscale download failed"; exit 1 }
 
-          if (-Not (Test-Path $installerPath)) {
-              Write-Error "Download failed, file not found."
-              exit 1
-          }
-
-          Start-Process "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList "-Command", "Start-Process msiexec.exe -ArgumentList '/i `"$installerPath`" /quiet /norestart' -Wait" -Wait
-          Remove-Item $installerPath -Force
+          # Run EXE silently
+          Start-Process -FilePath $exePath -ArgumentList "/quiet" -Wait
 
           # Install Steam
           $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
