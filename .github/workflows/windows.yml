@@ -20,71 +20,51 @@ jobs:
 
       - name: Create RDP User (user / password)
         run: |
-          $securePass = ConvertTo-SecureString "password" -AsPlainText -Force
-          New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "user"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
+          if (-not (Get-LocalUser -Name "user" -ErrorAction SilentlyContinue)) {
+              $securePass = ConvertTo-SecureString "password" -AsPlainText -Force
+              New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
+          }
+          if (-not (Get-LocalGroupMember -Group "Administrators" -Member "user" -ErrorAction SilentlyContinue)) {
+              Add-LocalGroupMember -Group "Administrators" -Member "user"
+          }
+          if (-not (Get-LocalGroupMember -Group "Remote Desktop Users" -Member "user" -ErrorAction SilentlyContinue)) {
+              Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
+          }
           echo "RDP_CREDS=User: user | Password: password" >> $env:GITHUB_ENV
 
-      - name: Customize Windows UI & Disable Test Mode & Set Hostname
-        id: ui_testmode
+      - name: Customize Windows UI & Set Hostname
         run: |
           # Hide desktop icons
           Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
           Stop-Process -Name explorer -Force
-
-          # Disable Test Mode watermark
-          bcdedit /set testsigning off
-          Write-Host "Test Mode disabled. Rebooting in 10 seconds..."
-
-          # Determine Windows version for hostname
+          # Disable Test Mode watermark (session-only, no reboot)
+          bcdedit /set testsigning off || Write-Host "Cannot set Test Mode in this session"
+          # Set hostname for this session
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
           $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
           $hostname = "$osName/$osUpdate"
-
-          # Change hostname
-          Rename-Computer -NewName $hostname -Force
-
-          # Save hostname for later steps
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
 
-          # Flag for reboot detection
-          New-Item -ItemType File -Path "$env:TEMP\reboot_pending.flag" -Force
-
-          # Reboot
-          shutdown /r /t 10 /f
-
-      - name: Resume, Install Programs & Set Screen Resolution
-        if: always()
+      - name: Install Programs & Set Screen Resolution
         run: |
-          $flag = "$env:TEMP\reboot_pending.flag"
-          if (Test-Path $flag) {
-              Write-Host "Resuming workflow after reboot..."
-              Remove-Item $flag
-              Start-Sleep -Seconds 15
-          }
-
           # Install Tailscale
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
-
           # Install Steam
           $steamUrl = "https://steamcdn-a.akamaihd.net/client/installer/SteamSetup.exe"
           $installer = "$env:TEMP\SteamSetup.exe"
           Invoke-WebRequest -Uri $steamUrl -OutFile $installer
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
-
-          # Download QRes and set screen resolution
+          # Set screen resolution using QRes
           Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/latest/download" -OutFile "$env:TEMP\QRes.zip"
           Expand-Archive "$env:TEMP\QRes.zip" -DestinationPath "$env:TEMP\QRes" -Force
           $qresExe = Get-ChildItem "$env:TEMP\QRes" -Recurse -Filter "QRes.exe" | Select-Object -First 1
           & $qresExe.FullName /x:1920 /y:1080
 
       - name: Establish Tailscale Connection
-        if: always()
         run: |
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=$env:HOSTNAME
           $tsIP = $null
@@ -94,25 +74,17 @@ jobs:
               Start-Sleep -Seconds 5
               $retries++
           }
-          if (-not $tsIP) {
-              Write-Error "Tailscale IP not assigned. Exiting."
-              exit 1
-          }
+          if (-not $tsIP) { Write-Error "Tailscale IP not assigned"; exit 1 }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
       - name: Verify RDP Accessibility
-        if: always()
         run: |
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
           $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
-          if (-not $testResult.TcpTestSucceeded) {
-              Write-Error "TCP connection to RDP port 3389 failed"
-              exit 1
-          }
+          if (-not $testResult.TcpTestSucceeded) { Write-Error "TCP connection to RDP port 3389 failed"; exit 1 }
           Write-Host "TCP connectivity successful!"
 
       - name: Maintain Connection
-        if: always()
         run: |
           Write-Host "Address: $env:TAILSCALE_IP"
           Write-Host "Hostname: $env:HOSTNAME"
