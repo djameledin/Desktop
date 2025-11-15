@@ -87,17 +87,6 @@ jobs:
           $hostname = "$osName-$osUpdate"
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
 
-      - name: Set Screen Resolution
-        run: |
-          $zipPath = "$env:TEMP\QRes.zip"
-          $extractPath = "$env:TEMP\QRes"
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/qres/files/QRes/1.0.9/QRes.zip/download" -OutFile $zipPath
-          if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
-          Expand-Archive $zipPath -DestinationPath $extractPath -Force
-          $qresExe = Get-ChildItem $extractPath -Recurse -Filter "QRes.exe" | Select-Object -First 1
-          if (-not $qresExe) { Write-Error "QRes.exe not found"; exit 1 }
-          Start-Process -FilePath $qresExe.FullName -ArgumentList "/x:1920 /y:1080" -Wait
-
       - name: Install Steam
         run: |
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
