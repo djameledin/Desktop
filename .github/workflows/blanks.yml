@@ -11,43 +11,90 @@ jobs:
     steps:
       - name: Update system
         run: |
+          echo "Updating system..."
+          echo "------------------------"
           sudo apt-get update -y
           sudo apt-get upgrade -y
+          echo "System updated successfully"
+          echo ""
 
       - name: Install GNOME Desktop and xRDP
         run: |
+          echo "Installing GNOME + xRDP..."
+          echo "------------------------------"
           sudo apt-get install -y ubuntu-desktop gnome-session gdm3 xrdp
           sudo systemctl enable xrdp
           sudo systemctl start xrdp
           sudo ufw allow 3389/tcp || true
-
           echo "gnome-session" > ~/.xsession
+          echo "Desktop & RDP installed"
+          echo ""
 
-      - name: Create temporary user
+      - name: Create temporary RDP user
         run: |
-          USER="rdp"
+          USER="user"
           PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
           sudo useradd -m -s /bin/bash $USER
           echo "$USER:$PASSWORD" | sudo chpasswd
-          echo "RDP Username: $USER"
-          echo "RDP Password: $PASSWORD"
 
-      - name: Install Tailscale
+          echo "RDP User Created"
+          echo ""
+          echo " Username : $USER ; Password : $PASSWORD"
+          echo ""
+
+      - name: Install & Start Tailscale
         run: |
-          curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-${{ github.run_id }}
-          TAILSCALE_IP=$(tailscale ip -4)
-          echo "Tailscale IP: $TAILSCALE_IP"
+          echo "Setting up Tailscale..."
+          echo "---------------------------"
+          set -e
+
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg apt-transport-https ca-certificates lsb-release
+
+          DIST=$(lsb_release -cs)
+
+          curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${DIST}.noarmor.gpg" \
+            | sudo gpg --dearmour -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+
+          echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu ${DIST} main" \
+            | sudo tee /etc/apt/sources.list.d/tailscale.list
+
+          sudo apt-get update
+          sudo apt-get install -y tailscale
+          sudo systemctl enable --now tailscaled
+
+          sudo tailscale up \
+            --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} \
+            --hostname=gh-runner-${{ github.run_id }} \
+            || (sudo tailscale down || true; sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }})
+
+          TAILSCALE_IP=$(sudo tailscale ip -4 | tr -d '\r\n')
+          echo "TAILSCALE_IP=$TAILSCALE_IP" >> $GITHUB_ENV
+
+          echo "Tailscale Connected to $TAILSCALE_IP"
+          echo ""
 
       - name: Install Steam
         run: |
+          echo "Installing Steam..."
+          echo "----------------------------"
           sudo dpkg --add-architecture i386
           sudo apt update
           sudo apt install -y steam
+          echo "Steam installed"
+          echo ""
+
+      - name: RDP Connection Info
+        run: |
+          echo ""
+          echo " IP Address : $TAILSCALE_IP ; Username: user"
+          echo ""
 
       - name: Keep Runner Alive
         run: |
+          echo "Keeping RDP session alive..."
+          echo "------------------------------------"
           while true; do
-            echo "[$(date)] RDP Session Active..."
+            echo "[ $(date) ] RDP Session Active..."
             sleep 300
           done
