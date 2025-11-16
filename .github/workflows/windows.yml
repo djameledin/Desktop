@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  remote-desktop:
+  desktop:
     runs-on: windows-latest
     timeout-minutes: 3600
 
@@ -12,20 +12,28 @@ jobs:
       - name: Build user
         run: |
           Add-Type -AssemblyName System.Security
+
+          # Character sets
           $chars = @{
               Upper = [char[]](65..90)
               Lower = [char[]](97..122)
               Number = [char[]](48..57)
               Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
           }
+
+          # Build 8-character password: 2 Upper + 2 Lower + 2 Number + 2 Special
           $passwordArray = @()
-          $passwordArray += $chars.Upper | Get-Random -Count 4
-          $passwordArray += $chars.Lower | Get-Random -Count 4
-          $passwordArray += $chars.Number | Get-Random -Count 4
-          $passwordArray += $chars.Special | Get-Random -Count 4
-          $password = (-join ($passwordArray | Sort-Object { Get-Random }))
+          $passwordArray += $chars.Upper   | Get-Random -Count 2
+          $passwordArray += $chars.Lower   | Get-Random -Count 2
+          $passwordArray += $chars.Number  | Get-Random -Count 2
+          $passwordArray += $chars.Special | Get-Random -Count 2
+
+          # Shuffle to randomize order
+          $password = -join ($passwordArray | Sort-Object { Get-Random })
+
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
+          # Create user if not exists
           if (-not (Get-LocalUser -Name "user" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
               Write-Host "User 'user' created successfully."
@@ -38,7 +46,7 @@ jobs:
 
           echo "RDP_USER=user" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
-
+          
       - name: Install & Connect Tailscale
         run: |
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
@@ -48,7 +56,7 @@ jobs:
           Remove-Item $installerPath -Force
           
           Write-Host "Starting Tailscale connection..."
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --ssh --hostname=gh-runner-$env:GITHUB_RUN_ID
 
           $tsIP = $null
           $retries = 0
@@ -62,35 +70,10 @@ jobs:
 
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
           Write-Host "Tailscale IP assigned: $tsIP"
-
-      - name: Optimize Performance & Customize Windows (No Restart)
+          
+      - name: Optimize Performance
         run: |
-          # Stop unnecessary services
-          $services = @(
-            "wuauserv","DiagTrack","dmwappushservice","MapsBroker","WSearch",
-            "XblAuthManager","XblGameSave","XboxGipSvc","XboxNetApiSvc",
-            "WerSvc","Fax","RetailDemo","PhoneSvc","WalletService",
-            "BcastDVRUserService","SCardSvr","Wecsvc","AJRouter","SysMain"
-          )
-          foreach ($svc in $services) {
-              sc.exe stop $svc 2>$null
-              sc.exe config $svc start= disabled 2>$null
-          }
-
-          # Disable background apps
-          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" /v GlobalUserDisabled /t REG_DWORD /d 1 /f
-
-          # Disable telemetry
-          reg add "HKLM\Software\Policies\Microsoft\Windows\DataCollection" /v AllowTelemetry /t REG_DWORD /d 0 /f
-
-          # Disable Xbox Game Bar
-          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR" /v AppCaptureEnabled /t REG_DWORD /d 0 /f
-          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR" /v GameDVR_Enabled /t REG_DWORD /d 0 /f
-
-          # Optimize GPU scheduling
-          reg add "HKLM\System\CurrentControlSet\Control\GraphicsDrivers" /v HwSchMode /t REG_DWORD /d 2 /f
-
-          # Set Ultimate Performance Power Plan
+          # Change power plan to Ultimate Performance
           powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
           powercfg -setactive e9a42b02-d5df-448d-aa00-03f14749eb61
 
@@ -98,9 +81,6 @@ jobs:
           Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
           Stop-Process -Name explorer -Force
           Start-Process explorer
-
-          # Disable Test Mode watermark (applied without reboot)
-          bcdedit /set testsigning off || Write-Host "Cannot disable Test Mode"
 
           # Set hostname
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
@@ -117,14 +97,16 @@ jobs:
           Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
           Remove-Item $steamInstaller -Force
           Write-Host "Steam installed successfully."
-
+          
       - name: Maintain Connection & Show Info
         run: |
-         Write-Host ""
+          Write-Host " "
           Write-Host "$env:HOSTNAME are ready!"
           Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
+          Write-Host " SSH via Tailscale: ssh $env:RDP_USER@$env:TAILSCALE_IP"
           
           while ($true) {
-              Write-Host "[$(Get-Date)] PC & Tailscale Active..."
+              Write-Host " "
+              Write-Host "[$(Get-Date)] Keep it Active..."
               Start-Sleep -Seconds 300
           }
