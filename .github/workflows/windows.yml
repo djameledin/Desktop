@@ -49,6 +49,12 @@ jobs:
           
       - name: Install & Connect Tailscale
         run: |
+          $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
+          $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
+          $hostname = "$osName/$osUpdate"
+          echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
+          Write-Host "Hostname set to: $hostname"
+        
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
@@ -70,26 +76,8 @@ jobs:
 
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
           Write-Host "Tailscale IP assigned: $tsIP"
-          
-      - name: Optimize Performance
-        run: |
-          # Change power plan to Ultimate Performance
-          powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
-          powercfg -setactive e9a42b02-d5df-448d-aa00-03f14749eb61
 
-          # Hide desktop icons & refresh Explorer
-          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
-          Stop-Process -Name explorer -Force
-          Start-Process explorer
-
-          # Set hostname
-          $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
-          $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
-          $hostname = "$osName-$osUpdate"
-          echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
-          Write-Host "Hostname set to: $hostname"
-
-      - name: Install Steam
+      - name: Install bundles
         run: |
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
           $steamInstaller = "$env:TEMP\SteamSetup.exe"
