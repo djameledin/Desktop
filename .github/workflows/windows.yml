@@ -98,7 +98,7 @@ jobs:
           # Disable animations & visual effects
           reg add "HKCU\Control Panel\Desktop" /v UserPreferencesMask /t REG_BINARY /d 9012078010000000 /f
 
-          # === Customize Windows UI ===
+          # Customize Windows UI
           Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
           Stop-Process -Name explorer -Force
 
@@ -110,14 +110,6 @@ jobs:
           $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
           $hostname = "$osName-$osUpdate"
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
-
-          # Restart system to apply all changes
-          shutdown /r /t 0
-
-      - name: Wait after reboot
-        run: |
-          Start-Sleep -Seconds 60
-          Write-Host "System restarted successfully."
 
       - name: Install Steam
         run: |
@@ -150,12 +142,12 @@ jobs:
 
       - name: Maintain Connection & Show Info
         run: |
-          Write-Host "$env:HOSTNAME are ready!"
-          Write-Host " Tailscale IP: $env:TAILSCALE_IP"
-          Write-Host " Username: $env:RDP_USER"
-          Write-Host " Password: $env:RDP_PASS"
+          Write-Host "Hostname: $env:HOSTNAME"
+          Write-Host "Tailscale IP: $env:TAILSCALE_IP"
+          Write-Host "Username: $env:RDP_USER"
+          Write-Host "Password: $env:RDP_PASS"
 
           while ($true) {
-              Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
+              Write-Host "[$(Get-Date)] RDP & CRD Active - Use Ctrl+C in workflow to terminate"
               Start-Sleep -Seconds 300
           }
