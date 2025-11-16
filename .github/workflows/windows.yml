@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 3600
 
     steps:
-      - name: Create RDP User with Strong Password
+      - name: Create RDP User
         run: |
           Add-Type -AssemblyName System.Security
           $chars = @{
@@ -25,87 +25,53 @@ jobs:
           $passwordArray += $chars.Special | Get-Random -Count 4
           $password = (-join ($passwordArray | Sort-Object { Get-Random }))
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-
           if (-not (Get-LocalUser -Name "user" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
           }
-
           Add-LocalGroupMember -Group "Administrators" -Member "user"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
-
           echo "RDP_USER=user" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
 
-      - name: Install and Connect Tailscale
+      - name: Install Tailscale
         run: |
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
-
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
-
-          $tsIP = $null
-          $retries = 0
-
+          $tsIP = $null; $retries = 0
           while (-not $tsIP -and $retries -lt 15) {
               $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
               Start-Sleep -Seconds 5
               $retries++
           }
-
           if (-not $tsIP) { Write-Error "Tailscale IP not assigned"; exit 1 }
-
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
       - name: Optimize Performance & Customize Windows UI
         run: |
-          # === Disable heavy background services ===
           $services = @(
             "wuauserv","DiagTrack","dmwappushservice","MapsBroker","WSearch",
             "XblAuthManager","XblGameSave","XboxGipSvc","XboxNetApiSvc",
             "WerSvc","Fax","RetailDemo","PhoneSvc","WalletService",
-            "BcastDVRUserService","SCardSvr","Wecsvc","AJRouter"
+            "BcastDVRUserService","SCardSvr","Wecsvc","AJRouter","SysMain"
           )
           foreach ($svc in $services) {
-            sc.exe stop $svc 2>$null
-            sc.exe config $svc start= disabled 2>$null
+              sc.exe stop $svc 2>$null
+              sc.exe config $svc start= disabled 2>$null
           }
-
-          # Disable Sysmain (Superfetch)
-          sc.exe stop SysMain 2>$null
-          sc.exe config SysMain start= disabled 2>$null
-
-          # Disable background apps
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" /v GlobalUserDisabled /t REG_DWORD /d 1 /f
-
-          # Disable telemetry
           reg add "HKLM\Software\Policies\Microsoft\Windows\DataCollection" /v AllowTelemetry /t REG_DWORD /d 0 /f
-
-          # Disable Xbox Game Bar
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR" /v AppCaptureEnabled /t REG_DWORD /d 0 /f
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR" /v GameDVR_Enabled /t REG_DWORD /d 0 /f
-
-          # Optimize GPU Scheduling
           reg add "HKLM\System\CurrentControlSet\Control\GraphicsDrivers" /v HwSchMode /t REG_DWORD /d 2 /f
-
-          # Power Plan: Ultimate Performance
           powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
           powercfg -setactive e9a42b02-d5df-448d-aa00-03f14749eb61
-
-          # Disable animations & visual effects
-          reg add "HKCU\Control Panel\Desktop" /v UserPreferencesMask /t REG_BINARY /d 9012078010000000 /f
-
-          # Customize Windows UI
           Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideIcons" -Value 1 -Force
           Stop-Process -Name explorer -Force
-
-          # Disable Test Mode watermark
-          bcdedit /set testsigning off || Write-Host "Cannot set Test Mode in this session"
-
-          # Set hostname
+          bcdedit /set testsigning off || Write-Host "Cannot set Test Mode"
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
           $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
           $hostname = "$osName-$osUpdate"
@@ -115,7 +81,6 @@ jobs:
         run: |
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
           $steamInstaller = "$env:TEMP\SteamSetup.exe"
-
           Invoke-WebRequest -Uri $steamUrl -OutFile $steamInstaller
           Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
           Remove-Item $steamInstaller -Force
@@ -130,24 +95,21 @@ jobs:
 
       - name: Register Chrome Remote Desktop
         run: |
-          $crd = "C:\Program Files\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe"
-          if (-not (Test-Path $crd)) {
-              $found = Get-ChildItem "C:\Program Files" -Recurse -Filter "remoting_start_host.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($found) { $crd = $found.FullName }
+          $crd = Get-ChildItem "C:\Program Files" -Recurse -Filter "remoting_start_host.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($crd) {
+              & "$($crd.FullName)" `
+                --code="4/0Ab32j93ZFrSE1aCIoV3_noKrybMqrehHVPunW1HC1g_na8fsNctFOVCaRHUlNC53UWiPVA" `
+                --redirect-url="https://remotedesktop.google.com/_/oauthredirect" `
+                --name=$Env:COMPUTERNAME
           }
-          & "$crd" `
-            --code="4/0Ab32j91d11efiJUcE39qeU9NeW8gYp8o3A5LPUOppr5fr-pN0EDnjXVkp5SqoIJMxj-1_A" `
-            --redirect-url="https://remotedesktop.google.com/_/oauthredirect" `
-            --name=$Env:COMPUTERNAME
 
-      - name: Maintain Connection & Show Info
+      - name: Keep Alive & Show Info
         run: |
           Write-Host "Hostname: $env:HOSTNAME"
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
           Write-Host "Username: $env:RDP_USER"
           Write-Host "Password: $env:RDP_PASS"
-
           while ($true) {
-              Write-Host "[$(Get-Date)] RDP & CRD Active - Use Ctrl+C in workflow to terminate"
+              Write-Host "[$(Get-Date)] Your PC are Ready - Use Ctrl+C to stop"
               Start-Sleep -Seconds 300
           }
