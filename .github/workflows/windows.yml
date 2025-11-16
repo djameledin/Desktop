@@ -26,7 +26,7 @@ jobs:
 
       - name: Install Chrome Remote Desktop Host
         run: |
-          $url = "https://dl.google.com/linux/direct/chromeremotedesktophost.msi"
+          $url = "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi"
           $path = "$env:TEMP\crdhost.msi"
           Invoke-WebRequest -Uri $url -OutFile $path
           Start-Process msiexec.exe -ArgumentList "/i", "`"$path`"", "/quiet", "/norestart" -Wait
