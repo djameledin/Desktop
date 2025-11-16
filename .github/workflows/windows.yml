@@ -120,8 +120,8 @@ jobs:
 
       - name: Maintain Connection & Show Info
         run: |
+         Write-Host ""
           Write-Host "$env:HOSTNAME are ready!"
-          Write-Host " Tailscale IP: $env:TAILSCALE_IP"
           Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
           
           while ($true) {
