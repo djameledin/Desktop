@@ -78,17 +78,6 @@ jobs:
           # === Disable animations & visual effects ===
           reg add "HKCU\Control Panel\Desktop" /v UserPreferencesMask /t REG_BINARY /d 9012078010000000 /f
 
-          # === Set Resolution 1920x1080 system level ===
-          Add-Type -AssemblyName System.Windows.Forms
-          $width = 1920
-          $height = 1080
-          $displaySettings = Get-WmiObject -Class Win32_DisplayConfiguration
-          foreach ($setting in $displaySettings) {
-              $setting.PelsWidth = $width
-              $setting.PelsHeight = $height
-              $setting.Put() | Out-Null
-          }
-
           # === Restart after performance optimization ===
           shutdown /r /t 0
 
