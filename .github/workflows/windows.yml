@@ -56,7 +56,7 @@ jobs:
           Remove-Item $installerPath -Force
           
           Write-Host "Starting Tailscale connection..."
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --ssh --hostname=gh-runner-$env:GITHUB_RUN_ID
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
 
           $tsIP = $null
           $retries = 0
@@ -103,7 +103,6 @@ jobs:
           Write-Host " "
           Write-Host "$env:HOSTNAME are ready!"
           Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
-          Write-Host " SSH via Tailscale: ssh $env:RDP_USER@$env:TAILSCALE_IP"
           
           while ($true) {
               Write-Host " "
