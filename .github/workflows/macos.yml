@@ -9,12 +9,6 @@ jobs:
     timeout-minutes: 999999
 
     steps:
-      - name: Update macOS
-        run: |
-          echo "Updating system..."
-          softwareupdate -ia
-          echo "System updated successfully"
-
       - name: Install Homebrew
         run: |
           echo "Installing Homebrew..."
@@ -22,12 +16,6 @@ jobs:
           echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
           eval "$(/opt/homebrew/bin/brew shellenv)"
           echo "Homebrew installed"
-
-      - name: Install Brave Browser
-        run: |
-          echo "Installing Brave Browser..."
-          brew install --cask brave-browser
-          echo "Brave installed"
 
       - name: Install Tailscale
         run: |
