@@ -44,7 +44,6 @@ jobs:
       - name: Install & Start Tailscale
         run: |
           echo "Setting up Tailscale..."
-          echo "---------------------------"
           set -e
 
           sudo apt-get update
@@ -68,20 +67,26 @@ jobs:
             || (sudo tailscale down || true; sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }})
 
           TAILSCALE_IP=$(sudo tailscale ip -4 | tr -d '\r\n')
-          echo "TAILSCALE_IP=$TAILSCALE_IP" >> $GITHUB_ENV
-
+          echo "TAILSCALE_IP=$TAILSCALE_IP"
           echo "Tailscale Connected to $TAILSCALE_IP"
 
-      - name: Install Brave Browser
+      - name: Install & Run RustDesk
         run: |
-          echo "Installing Brave Browser..."
-          sudo apt install -y apt-transport-https curl
-          sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser.list
-          sudo apt update
-          sudo apt install -y brave-browser
-          echo "Brave installed"
+          echo "Installing RustDesk..."
+
+          RUSTDESK_URL=$(curl -s https://api.github.com/repos/rustdesk/rustdesk/releases/latest \
+            | grep "x86_64.AppImage" \
+            | cut -d '"' -f 4)
+          curl -Lo rustdesk.AppImage $RUSTDESK_URL
+          chmod +x rustdesk.AppImage
           
+          nohup ./rustdesk.AppImage &>/dev/null &
+          sleep 5 
+
+          RUSTDESK_ID=$(./rustdesk.AppImage --get-id || echo "ID not available yet")
+          echo "RustDesk ID: $RUSTDESK_ID"
+          echo "RustDesk is running"
+
       - name: Keep RDP Session Alive
         run: |
           echo "Keeping session alive..."
