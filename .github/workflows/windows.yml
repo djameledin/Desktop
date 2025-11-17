@@ -21,12 +21,12 @@ jobs:
               Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
           }
 
-          # Build 8-character password: 2 Upper + 2 Lower + 2 Number + 2 Special
+          # Build 8-character password: 3 Upper + 3 Lower + 1 Number + 1 Special
           $passwordArray = @()
-          $passwordArray += $chars.Upper   | Get-Random -Count 2
-          $passwordArray += $chars.Lower   | Get-Random -Count 2
-          $passwordArray += $chars.Number  | Get-Random -Count 2
-          $passwordArray += $chars.Special | Get-Random -Count 2
+          $passwordArray += $chars.Upper   | Get-Random -Count 3
+          $passwordArray += $chars.Lower   | Get-Random -Count 3
+          $passwordArray += $chars.Number  | Get-Random -Count 1
+          $passwordArray += $chars.Special | Get-Random -Count 1
 
           # Shuffle to randomize order
           $password = -join ($passwordArray | Sort-Object { Get-Random })
