@@ -58,18 +58,18 @@ jobs:
           # --- Helper function to create registry path if missing ---
           function Ensure-RegistryPath {
           param([string]$Path)
-          if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+            if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
           }
 
           # Hide desktop icons
           $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
           Ensure-RegistryPath $explorerPath
-          Set-ItemProperty -Path $explorerPath -Name HideIcons -Value 1
+          New-ItemProperty -Path $explorerPath -Name HideIcons -Value 1 -PropertyType DWord -Force
 
           # Enable taskbar transparency
           $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
           Ensure-RegistryPath $themesPath
-          Set-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1
+          New-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1 -PropertyType DWord -Force
 
           Write-Host "Customizations applied, unloading hive..."
           reg unload "HKU\$UserSID"
@@ -81,7 +81,7 @@ jobs:
           Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskName -User $Username -RunLevel Highest -Force
           Start-ScheduledTask -TaskName $taskName
           Write-Host "Explorer restart scheduled for user $Username."
-          
+
       - name: Install & Connect Tailscale
         run: |
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
@@ -114,6 +114,7 @@ jobs:
 
       - name: Install bundles
         run: |
+          # Install Steam
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
           $steamInstaller = "$env:TEMP\SteamSetup.exe"
           Invoke-WebRequest -Uri $steamUrl -OutFile $steamInstaller
@@ -121,9 +122,16 @@ jobs:
           Remove-Item $steamInstaller -Force
           Write-Host "Steam installed successfully."
 
+          # Install PowerToys
+          $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
+          $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
+          Invoke-WebRequest -Uri $ptUrl -OutFile $ptInstaller
+          Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
+          Remove-Item $ptInstaller -Force
+          Write-Host "PowerToys installed successfully."
+
       - name: Maintain Connection & Show Info
         run: |
-          Write-Host " "
           Write-Host "$env:HOSTNAME are ready!"
           Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
           
