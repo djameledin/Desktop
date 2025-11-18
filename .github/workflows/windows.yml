@@ -27,8 +27,6 @@ jobs:
           $passwordArray += $chars.Lower   | Get-Random -Count 3
           $passwordArray += $chars.Number  | Get-Random -Count 1
           $passwordArray += $chars.Special | Get-Random -Count 1
-
-          # Shuffle to randomize order
           $password = -join ($passwordArray | Sort-Object { Get-Random })
 
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
@@ -46,7 +44,26 @@ jobs:
 
           echo "RDP_USER=user" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
-          
+
+      - name: Customize Windows
+        run: |
+          ### 1) Disable Test Mode (removes watermark)
+          Write-Host "Disabling Testsigning Mode..."
+          bcdedit /set testsigning off
+          Write-Host "Test Mode is now OFF."
+
+          ### 2) Hide desktop icons
+          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideIcons -Value 1
+
+          ### 3) Enable taskbar transparency
+          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name EnableTransparency -Value 1
+
+          ### 4) Restart Explorer to apply changes
+          Stop-Process -ProcessName explorer -Force
+          Start-Process explorer.exe
+
+          Write-Host "Windows customizations applied successfully."
+
       - name: Install & Connect Tailscale
         run: |
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
@@ -85,7 +102,7 @@ jobs:
           Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
           Remove-Item $steamInstaller -Force
           Write-Host "Steam installed successfully."
-          
+
       - name: Maintain Connection & Show Info
         run: |
           Write-Host " "
