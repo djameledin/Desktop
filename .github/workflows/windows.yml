@@ -93,7 +93,6 @@ jobs:
               try {
                   Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
                   if (Test-Path $Destination) {
-                      Write-Host "Downloaded $Url successfully."
                       return
                   }
               } catch {
