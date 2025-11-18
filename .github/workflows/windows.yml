@@ -55,11 +55,21 @@ jobs:
           Write-Host "Loading user hive..."
           reg load "HKU\$UserSID" "$UserHive"
 
+          # --- Helper function to create registry path if missing ---
+          function Ensure-RegistryPath {
+          param([string]$Path)
+          if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+          }
+
           # Hide desktop icons
-          Set-ItemProperty -Path "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideIcons -Value 1
+          $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+          Ensure-RegistryPath $explorerPath
+          Set-ItemProperty -Path $explorerPath -Name HideIcons -Value 1
 
           # Enable taskbar transparency
-          Set-ItemProperty -Path "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name EnableTransparency -Value 1
+          $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+          Ensure-RegistryPath $themesPath
+          Set-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1
 
           Write-Host "Customizations applied, unloading hive..."
           reg unload "HKU\$UserSID"
@@ -71,7 +81,7 @@ jobs:
           Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskName -User $Username -RunLevel Highest -Force
           Start-ScheduledTask -TaskName $taskName
           Write-Host "Explorer restart scheduled for user $Username."
-
+          
       - name: Install & Connect Tailscale
         run: |
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
