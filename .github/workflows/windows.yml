@@ -53,54 +53,43 @@ jobs:
 
           # Get the SID string properly
           $UserSID = (Get-LocalUser -Name $Username).SID.Value
-          Write-Host "Loading user hive for $Username ($UserSID)..."
-
-          # Load user hive
-          reg load "HKU\$UserSID" "$UserHive"
-          Start-Sleep 2  # tiny delay to ensure hive is accessible
+          Write-Host "Processing customizations for $Username ($UserSID)..."
 
           # --- Helper function to create registry path recursively ---
           function Ensure-RegistryPath {
-          param([string]$Path)
-          $segments = $Path.Split("\")
-          $current = $segments[0]
-          foreach ($seg in $segments[1..($segments.Length-1)]) {
-              $current = "$current\$seg"
-              if (-not (Test-Path $current)) { 
-                  New-Item -Path $current -Force | Out-Null
-                  }
+              param([string]$Path)
+              if (-not (Test-Path $Path)) {
+                  New-Item -Path $Path -Force | Out-Null
               }
           }
 
-          # Hide desktop icons
-          $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-          Ensure-RegistryPath $explorerPath
-          if (-not (Get-ItemProperty -Path $explorerPath -Name HideIcons -ErrorAction SilentlyContinue)) {
-              New-ItemProperty -Path "Registry::$explorerPath" -Name HideIcons -Value 1 -PropertyType DWord -Force
-          } else {
-              Set-ItemProperty -Path $explorerPath -Name HideIcons -Value 1
+          # Load user hive if not already loaded
+          if (-not (Test-Path "HKU\$UserSID")) {
+              Write-Host "Loading hive..."
+              reg load "HKU\$UserSID" "$UserHive"
+              Start-Sleep 2
           }
 
-          # Enable taskbar transparency
-          $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+          # --- Hide desktop icons ---
+          $explorerPath = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+          Ensure-RegistryPath $explorerPath
+          Write-Host "Hiding desktop icons..."
+          Set-ItemProperty -Path $explorerPath -Name "HideIcons" -Value 1 -Type DWord
+
+          # --- Enable taskbar transparency ---
+          $themesPath = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
           Ensure-RegistryPath $themesPath
-          if (-not (Get-ItemProperty -Path $themesPath -Name EnableTransparency -ErrorAction SilentlyContinue)) {
-             New-ItemProperty -Path "Registry::$themesPath" -Name EnableTransparency -Value 1 -PropertyType DWord -Force
-          } else {
-             Set-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1
-          }
-  
-          Write-Host "Customizations applied, unloading hive..."
+          Write-Host "Enabling taskbar transparency..."
+          Set-ItemProperty -Path $themesPath -Name "EnableTransparency" -Value 1 -Type DWord
+
+          # Unload the hive
+          Write-Host "Unloading user hive..."
           reg unload "HKU\$UserSID"
 
-          # Restart Explorer in user session via scheduled task
-          $taskName = "RestartExplorer_$Username"
-          $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "Stop-Process -Name explorer -Force; Start-Process explorer.exe"
-          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
-          Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskName -User $Username -RunLevel Highest -Force
-          Start-ScheduledTask -TaskName $taskName
-          Write-Host "Explorer restart scheduled for user $Username."
-
+          # Restart Explorer for the current user session
+          Write-Host "Restarting Explorer..."
+          Start-Process powershell -ArgumentList "-Command `"Stop-Process -Name explorer -Force; Start-Process explorer.exe`"" -WindowStyle Hidden
+          Write-Host "Customizations applied successfully!"
 
       - name: Install & Connect Tailscale
         run: |
