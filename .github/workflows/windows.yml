@@ -45,47 +45,6 @@ jobs:
           echo "RDP_USER=user" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
 
-      - name: Apply Windows Customizations for User
-        run: |
-          $Username = "user"
-          $UserProfile = "C:\Users\$Username"
-          $UserHive = "$UserProfile\NTUSER.DAT"
-          $UserSID = (Get-LocalUser -Name $Username).SID.Value
-
-          Write-Host "Processing customizations for $Username ($UserSID)..."
-
-          # Load hive if not already loaded
-          if (-not (Get-PSDrive -PSProvider Registry | Where-Object Name -eq $UserSID)) {
-              Write-Host "Loading hive..."
-              reg load "HKU\$UserSID" "$UserHive"
-              Start-Sleep 2
-          }
-
-          # Helper function to ensure registry path exists
-          function Ensure-RegistryPath {
-              param([string]$Path)
-              if (-not (Test-Path $Path)) {
-                  New-Item -Path $Path -Force | Out-Null
-              }
-          }
-
-          # Paths to modify
-          $explorerPath = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-          $themesPath   = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-
-          # Ensure paths exist
-          Ensure-RegistryPath $explorerPath
-          Ensure-RegistryPath $themesPath
-
-          # Apply settings safely
-          New-ItemProperty -Path $explorerPath -Name "HideIcons" -PropertyType DWord -Value 1 -Force | Out-Null
-          New-ItemProperty -Path $themesPath -Name "EnableTransparency" -PropertyType DWord -Value 1 -Force | Out-Null
-
-          Write-Host "Customizations applied successfully!"
-
-          # Unload hive
-          reg unload "HKU\$UserSID"
-
       - name: Install & Connect Tailscale
         run: |
           $osName = (Get-ComputerInfo -Property "WindowsProductName").WindowsProductName -replace ' ', '-'
