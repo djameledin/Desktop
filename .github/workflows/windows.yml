@@ -55,40 +55,28 @@ jobs:
           $UserSID = (Get-LocalUser -Name $Username).SID.Value
           Write-Host "Processing customizations for $Username ($UserSID)..."
 
-          # --- Helper function to create registry path recursively ---
-          function Ensure-RegistryPath {
-              param([string]$Path)
-              if (-not (Test-Path $Path)) {
-                  New-Item -Path $Path -Force | Out-Null
-              }
-          }
+          # Load the user's registry hive
+          Write-Host "Loading hive..."
+          reg load "HKU\$UserSID" "$UserHive"
 
-          # Load user hive if not already loaded
-          if (-not (Test-Path "HKU\$UserSID")) {
-              Write-Host "Loading hive..."
-              reg load "HKU\$UserSID" "$UserHive"
-              Start-Sleep 2
-          }
+          # --- Ensure registry paths exist and set values ---
 
-          # --- Hide desktop icons ---
-          $explorerPath = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-          Ensure-RegistryPath $explorerPath
-          Write-Host "Hiding desktop icons..."
-          Set-ItemProperty -Path $explorerPath -Name "HideIcons" -Value 1 -Type DWord
+          # Hide desktop icons
+          $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+          reg add "$explorerPath" /f
+          reg add "$explorerPath" /v HideIcons /t REG_DWORD /d 1 /f
+          Write-Host "Desktop icons hidden."
 
-          # --- Enable taskbar transparency ---
-          $themesPath = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-          Ensure-RegistryPath $themesPath
-          Write-Host "Enabling taskbar transparency..."
-          Set-ItemProperty -Path $themesPath -Name "EnableTransparency" -Value 1 -Type DWord
+          # Enable taskbar transparency
+          $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+          reg add "$themesPath" /f
+          reg add "$themesPath" /v EnableTransparency /t REG_DWORD /d 1 /f
+          Write-Host "Taskbar transparency enabled."
 
           # Unload the hive
           Write-Host "Unloading user hive..."
           reg unload "HKU\$UserSID"
 
-          # Restart Explorer for the current user session
-          Write-Host "Restarting Explorer..."
-          Start-Process powershell -ArgumentList "-Command `"Stop-Process -Name explorer -Force; Start-Process explorer.exe`"" -WindowStyle Hidden
           Write-Host "Customizations applied successfully!"
 
       - name: Install & Connect Tailscale
