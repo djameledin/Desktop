@@ -50,27 +50,46 @@ jobs:
           $Username = "user"
           $UserProfile = "C:\Users\$Username"
           $UserHive = "$UserProfile\NTUSER.DAT"
-          $UserSID = (Get-LocalUser -Name $Username).SID
 
-          Write-Host "Loading user hive..."
+          # Get the SID string properly
+          $UserSID = (Get-LocalUser -Name $Username).SID.Value
+          Write-Host "Loading user hive for $Username ($UserSID)..."
+
+          # Load user hive
           reg load "HKU\$UserSID" "$UserHive"
+          Start-Sleep 2  # tiny delay to ensure hive is accessible
 
-          # --- Helper function to create registry path if missing ---
+          # --- Helper function to create registry path recursively ---
           function Ensure-RegistryPath {
           param([string]$Path)
-            if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+          $segments = $Path.Split("\")
+          $current = $segments[0]
+          foreach ($seg in $segments[1..($segments.Length-1)]) {
+              $current = "$current\$seg"
+              if (-not (Test-Path $current)) { 
+                  New-Item -Path $current -Force | Out-Null
+                  }
+              }
           }
 
           # Hide desktop icons
           $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
           Ensure-RegistryPath $explorerPath
-          New-ItemProperty -Path $explorerPath -Name HideIcons -Value 1 -PropertyType DWord -Force
+          if (-not (Get-ItemProperty -Path $explorerPath -Name HideIcons -ErrorAction SilentlyContinue)) {
+              New-ItemProperty -Path $explorerPath -Name HideIcons -Value 1 -PropertyType DWord -Force
+          } else {
+              Set-ItemProperty -Path $explorerPath -Name HideIcons -Value 1
+          }
 
           # Enable taskbar transparency
           $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
           Ensure-RegistryPath $themesPath
-          New-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1 -PropertyType DWord -Force
-
+          if (-not (Get-ItemProperty -Path $themesPath -Name EnableTransparency -ErrorAction SilentlyContinue)) {
+              New-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1 -PropertyType DWord -Force
+          } else {
+             Set-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1
+          }
+  
           Write-Host "Customizations applied, unloading hive..."
           reg unload "HKU\$UserSID"
 
@@ -81,6 +100,7 @@ jobs:
           Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskName -User $Username -RunLevel Highest -Force
           Start-ScheduledTask -TaskName $taskName
           Write-Host "Explorer restart scheduled for user $Username."
+
 
       - name: Install & Connect Tailscale
         run: |
