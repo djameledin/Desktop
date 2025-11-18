@@ -106,7 +106,7 @@ jobs:
           exit 1 }
 
           # Install PowerToys
-          $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
+          $ptUrl = "https://github.com/microsoft/PowerToys/releases/download/v0.95.1/PowerToysSetup-0.95.1-x64.exe"
           $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
           Download-File -Url $ptUrl -Destination $ptInstaller
           Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
