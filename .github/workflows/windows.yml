@@ -105,21 +105,21 @@ jobs:
           Write-Error "Failed to download $Url after $Retries attempts"
           exit 1 }
 
-         # Install PowerToys
-         $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
-         $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
-         Download-File -Url $ptUrl -Destination $ptInstaller
-         Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
-         Remove-Item $ptInstaller -Force
-         Write-Host "PowerToys installed successfully."
+          # Install PowerToys
+          $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
+          $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
+          Download-File -Url $ptUrl -Destination $ptInstaller
+          Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
+          Remove-Item $ptInstaller -Force
+          Write-Host "PowerToys installed successfully."
 
-         # Install Steam
-         $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
-         $steamInstaller = "$env:TEMP\SteamSetup.exe"
-         Download-File -Url $steamUrl -Destination $steamInstaller
-         Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
-         Remove-Item $steamInstaller -Force
-         Write-Host "Steam installed successfully."
+          # Install Steam
+          $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
+          $steamInstaller = "$env:TEMP\SteamSetup.exe"
+          Download-File -Url $steamUrl -Destination $steamInstaller
+          Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
+          Remove-Item $steamInstaller -Force
+          Write-Host "Steam installed successfully."
 
       - name: Maintain Connection & Show Info
         run: |
