@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 3600
 
     steps:
-      - name: Build user
+      - name: Build remote desktop user
         run: |
           Add-Type -AssemblyName System.Security
 
@@ -45,24 +45,32 @@ jobs:
           echo "RDP_USER=user" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
 
-      - name: Customize Windows
+      - name: Apply Windows Customizations for User
         run: |
-          ### 1) Disable Test Mode (removes watermark)
-          Write-Host "Disabling Testsigning Mode..."
-          bcdedit /set testsigning off
-          Write-Host "Test Mode is now OFF."
+          $Username = "user"
+          $UserProfile = "C:\Users\$Username"
+          $UserHive = "$UserProfile\NTUSER.DAT"
+          $UserSID = (Get-LocalUser -Name $Username).SID
 
-          ### 2) Hide desktop icons
-          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideIcons -Value 1
+          Write-Host "Loading user hive..."
+          reg load "HKU\$UserSID" "$UserHive"
 
-          ### 3) Enable taskbar transparency
-          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name EnableTransparency -Value 1
+          # Hide desktop icons
+          Set-ItemProperty -Path "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideIcons -Value 1
 
-          ### 4) Restart Explorer to apply changes
-          Stop-Process -ProcessName explorer -Force
-          Start-Process explorer.exe
+          # Enable taskbar transparency
+          Set-ItemProperty -Path "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name EnableTransparency -Value 1
 
-          Write-Host "Windows customizations applied successfully."
+          Write-Host "Customizations applied, unloading hive..."
+          reg unload "HKU\$UserSID"
+
+          # Restart Explorer in user session via scheduled task
+          $taskName = "RestartExplorer_$Username"
+          $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "Stop-Process -Name explorer -Force; Start-Process explorer.exe"
+          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
+          Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskName -User $Username -RunLevel Highest -Force
+          Start-ScheduledTask -TaskName $taskName
+          Write-Host "Explorer restart scheduled for user $Username."
 
       - name: Install & Connect Tailscale
         run: |
