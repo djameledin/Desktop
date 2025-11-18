@@ -76,7 +76,7 @@ jobs:
           $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
           Ensure-RegistryPath $explorerPath
           if (-not (Get-ItemProperty -Path $explorerPath -Name HideIcons -ErrorAction SilentlyContinue)) {
-              New-ItemProperty -Path $explorerPath -Name HideIcons -Value 1 -PropertyType DWord -Force
+              New-ItemProperty -Path "Registry::$explorerPath" -Name HideIcons -Value 1 -PropertyType DWord -Force
           } else {
               Set-ItemProperty -Path $explorerPath -Name HideIcons -Value 1
           }
@@ -85,7 +85,7 @@ jobs:
           $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
           Ensure-RegistryPath $themesPath
           if (-not (Get-ItemProperty -Path $themesPath -Name EnableTransparency -ErrorAction SilentlyContinue)) {
-              New-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1 -PropertyType DWord -Force
+             New-ItemProperty -Path "Registry::$themesPath" -Name EnableTransparency -Value 1 -PropertyType DWord -Force
           } else {
              Set-ItemProperty -Path $themesPath -Name EnableTransparency -Value 1
           }
