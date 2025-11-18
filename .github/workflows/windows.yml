@@ -77,21 +77,49 @@ jobs:
 
       - name: Install bundles
         run: |
-          # Install PowerToys
-          $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
-          $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
-          Invoke-WebRequest -Uri $ptUrl -OutFile $ptInstaller
-          Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
-          Remove-Item $ptInstaller -Force
-          Write-Host "PowerToys installed successfully."
-        
-          # Install Steam
-          $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
-          $steamInstaller = "$env:TEMP\SteamSetup.exe"
-          Invoke-WebRequest -Uri $steamUrl -OutFile $steamInstaller
-          Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
-          Remove-Item $steamInstaller -Force
-          Write-Host "Steam installed successfully."
+          # Force TLS 1.2 for modern HTTPS downloads
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+          function Download-File {
+          param (
+             [string]$Url,
+              [string]$Destination,
+              [int]$Retries = 3,
+              [int]$DelaySeconds = 5
+          )
+
+          $attempt = 0
+          while ($attempt -lt $Retries) {
+              try {
+                  Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
+                  if (Test-Path $Destination) {
+                      Write-Host "Downloaded $Url successfully."
+                      return
+                  }
+              } catch {
+                  Write-Warning "Attempt $($attempt+1) failed for $Url"
+              }
+              $attempt++
+              Start-Sleep -Seconds $DelaySeconds
+          }
+          Write-Error "Failed to download $Url after $Retries attempts"
+          exit 1 }
+
+         # Install PowerToys
+         $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
+         $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
+         Download-File -Url $ptUrl -Destination $ptInstaller
+         Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
+         Remove-Item $ptInstaller -Force
+         Write-Host "PowerToys installed successfully."
+
+         # Install Steam
+         $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
+         $steamInstaller = "$env:TEMP\SteamSetup.exe"
+         Download-File -Url $steamUrl -Destination $steamInstaller
+         Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
+         Remove-Item $steamInstaller -Force
+         Write-Host "Steam installed successfully."
 
       - name: Maintain Connection & Show Info
         run: |
