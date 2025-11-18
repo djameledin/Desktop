@@ -50,34 +50,41 @@ jobs:
           $Username = "user"
           $UserProfile = "C:\Users\$Username"
           $UserHive = "$UserProfile\NTUSER.DAT"
-
-          # Get the SID string properly
           $UserSID = (Get-LocalUser -Name $Username).SID.Value
+
           Write-Host "Processing customizations for $Username ($UserSID)..."
 
-          # Load the user's registry hive
-          Write-Host "Loading hive..."
-          reg load "HKU\$UserSID" "$UserHive"
+          # Load hive if not already loaded
+          if (-not (Get-PSDrive -PSProvider Registry | Where-Object Name -eq $UserSID)) {
+              Write-Host "Loading hive..."
+              reg load "HKU\$UserSID" "$UserHive"
+              Start-Sleep 2
+          }
 
-          # --- Ensure registry paths exist and set values ---
+          # Helper function to ensure registry path exists
+          function Ensure-RegistryPath {
+              param([string]$Path)
+              if (-not (Test-Path $Path)) {
+                  New-Item -Path $Path -Force | Out-Null
+              }
+          }
 
-          # Hide desktop icons
-          $explorerPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-          reg add "$explorerPath" /f
-          reg add "$explorerPath" /v HideIcons /t REG_DWORD /d 1 /f
-          Write-Host "Desktop icons hidden."
+          # Paths to modify
+          $explorerPath = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+          $themesPath   = "HKU:\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
 
-          # Enable taskbar transparency
-          $themesPath = "HKU\$UserSID\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-          reg add "$themesPath" /f
-          reg add "$themesPath" /v EnableTransparency /t REG_DWORD /d 1 /f
-          Write-Host "Taskbar transparency enabled."
+          # Ensure paths exist
+          Ensure-RegistryPath $explorerPath
+          Ensure-RegistryPath $themesPath
 
-          # Unload the hive
-          Write-Host "Unloading user hive..."
-          reg unload "HKU\$UserSID"
+          # Apply settings safely
+          New-ItemProperty -Path $explorerPath -Name "HideIcons" -PropertyType DWord -Value 1 -Force | Out-Null
+          New-ItemProperty -Path $themesPath -Name "EnableTransparency" -PropertyType DWord -Value 1 -Force | Out-Null
 
           Write-Host "Customizations applied successfully!"
+
+          # Unload hive
+          reg unload "HKU\$UserSID"
 
       - name: Install & Connect Tailscale
         run: |
@@ -111,14 +118,6 @@ jobs:
 
       - name: Install bundles
         run: |
-          # Install Steam
-          $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
-          $steamInstaller = "$env:TEMP\SteamSetup.exe"
-          Invoke-WebRequest -Uri $steamUrl -OutFile $steamInstaller
-          Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
-          Remove-Item $steamInstaller -Force
-          Write-Host "Steam installed successfully."
-
           # Install PowerToys
           $ptUrl = "https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-64.exe"
           $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
@@ -126,6 +125,14 @@ jobs:
           Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
           Remove-Item $ptInstaller -Force
           Write-Host "PowerToys installed successfully."
+        
+          # Install Steam
+          $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
+          $steamInstaller = "$env:TEMP\SteamSetup.exe"
+          Invoke-WebRequest -Uri $steamUrl -OutFile $steamInstaller
+          Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
+          Remove-Item $steamInstaller -Force
+          Write-Host "Steam installed successfully."
 
       - name: Maintain Connection & Show Info
         run: |
