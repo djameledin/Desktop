@@ -112,14 +112,6 @@ jobs:
           Remove-Item $ptInstaller -Force
           Write-Host "PowerToys installed successfully."
 
-          # Install Windhawk
-          $whUrl = "https://windhawk.net/api/download?stable"
-          $whInstaller = "$env:TEMP\WindhawkSetup.exe"
-          Download-File -Url $whUrl -Destination $whInstaller
-          Start-Process -FilePath $whInstaller -ArgumentList "/quiet" -Wait
-          Remove-Item $whInstaller -Force
-          Write-Host "Windhawk installed successfully."
-          
           # Install Steam
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
           $steamInstaller = "$env:TEMP\SteamSetup.exe"
