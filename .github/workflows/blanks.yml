@@ -4,93 +4,85 @@ on:
   workflow_dispatch:
 
 jobs:
-  clean-rdp:
+  linux-desktop:
     runs-on: ubuntu-latest
-    timeout-minutes: 999999
+    timeout-minutes: 3600
 
     steps:
-      - name: Update System
+      - name: Create user
         run: |
-          echo "Updating system..."
-          sudo apt-get update -y
-          sudo apt-get upgrade -y
-          echo "System updated successfully"
+          sudo useradd -m -s /bin/bash user
+          PASS=$(tr -dc A-Za-z0-9 | head -c 12)
+          echo "user:$PASS" | sudo chpasswd
 
-      - name: Install GNOME Desktop Minimal and xRDP
+          echo "RDP_USER=user" >> $GITHUB_ENV
+          echo "RDP_PASS=$PASS" >> $GITHUB_ENV
+
+      - name: Install dependencies
         run: |
-          echo "Installing GNOME Desktop Minimal + xRDP..."
-          sudo apt-get install -y ubuntu-desktop-minimal gnome-session gdm3 xrdp
-          sudo systemctl enable xrdp
-          sudo systemctl start xrdp
-          sudo ufw allow 3389/tcp || true
-          echo "gnome-session" > ~/.xsession
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            cmake \
+            meson \
+            ninja-build \
+            pkg-config \
+            libwayland-dev \
+            libxcb1-dev \
+            libxcb-ewmh-dev \
+            libxkbcommon-dev \
+            libseat-dev \
+            libwlroots-dev \
+            wlroots \
+            wayland-protocols \
+            network-manager \
+            tailscale \
+            cage
 
-          # Disable animations to speed up GNOME
-          gsettings set org.gnome.desktop.interface enable-animations false
-
-          # Remove heavy packages to free resources
-          sudo apt-get remove --purge -y thunderbird libreoffice-* && sudo apt-get autoremove -y
-
-          echo "Minimal GNOME Desktop & RDP installed"
-
-      - name: Create Temporary RDP User
+      - name: Install Hyprland
         run: |
-          USER="user"
-          PASSWORD="user"
-          sudo useradd -m -s /bin/bash $USER
-          echo "$USER:$PASSWORD" | sudo chpasswd
-          echo "RDP User Created: Username=$USER ; Password=$PASSWORD"
+          sudo apt install -y hyprland || true
 
-      - name: Install & Start Tailscale
+          if ! command -v Hyprland > /dev/null; then
+            git clone https://github.com/hyprwm/Hyprland.git
+            cd Hyprland
+            sudo make all
+            sudo cp ./build/Hyprland /usr/bin/
+          fi
+
+      - name: Fix Wi-Fi issue (NetworkManager fallback)
         run: |
-          echo "Setting up Tailscale..."
-          set -e
+          sudo systemctl disable --now systemd-networkd || true
+          sudo systemctl enable --now NetworkManager
 
-          sudo apt-get update
-          sudo apt-get install -y curl gnupg apt-transport-https ca-certificates lsb-release
+          nmcli radio wifi off
+          echo "No WiFi hardware detected, using Ethernet only."
 
-          DIST=$(lsb_release -cs)
-
-          curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${DIST}.noarmor.gpg" \
-            | sudo gpg --dearmour -o /usr/share/keyrings/tailscale-archive-keyring.gpg
-
-          echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu ${DIST} main" \
-            | sudo tee /etc/apt/sources.list.d/tailscale.list
-
-          sudo apt-get update
-          sudo apt-get install -y tailscale
-          sudo systemctl enable --now tailscaled
-
+      - name: Login to Tailscale
+        run: |
           sudo tailscale up \
             --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} \
-            --hostname=gh-runner-${{ github.run_id }} \
-            || (sudo tailscale down || true; sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }})
+            --hostname=ubuntu-hyprland-${GITHUB_RUN_ID}
 
-          TAILSCALE_IP=$(sudo tailscale ip -4 | tr -d '\r\n')
-          echo "TAILSCALE_IP=$TAILSCALE_IP"
-          echo "Tailscale Connected to $TAILSCALE_IP"
+          IP=$(tailscale ip -4)
+          echo "TAILSCALE_IP=$IP" >> $GITHUB_ENV
+          echo "Tailscale IP: $IP"
 
-      - name: Install & Run RustDesk
+      - name: Start Hyprland session (virtual display)
         run: |
-          echo "Installing RustDesk..."
+          sudo -u user \
+          WAYLAND_DISPLAY=wayland-1 \
+          cage -- Hyprland &
 
-          RUSTDESK_URL=$(curl -s https://api.github.com/repos/rustdesk/rustdesk/releases/latest \
-            | grep "x86_64.AppImage" \
-            | cut -d '"' -f 4)
-          curl -Lo rustdesk.AppImage $RUSTDESK_URL
-          chmod +x rustdesk.AppImage
-          
-          nohup ./rustdesk.AppImage &>/dev/null &
-          sleep 5 
+          echo "Hyprland started in virtual session."
 
-          RUSTDESK_ID=$(./rustdesk.AppImage --get-id || echo "ID not available yet")
-          echo "RustDesk ID: $RUSTDESK_ID"
-          echo "RustDesk is running"
-
-      - name: Keep RDP Session Alive
+      - name: Keep alive
         run: |
-          echo "Keeping session alive..."
+          echo "Ubuntu + Hyprland ready!"
+          echo " Username : $RDP_USER ; Password : $RDP_PASS"
+          echo " Tailscale : $TAILSCALE_IP"
+
           while true; do
-            echo "[ $(date) ] RDP Session Active..."
+            echo "[ $(date) ] Alive..."
             sleep 300
           done
