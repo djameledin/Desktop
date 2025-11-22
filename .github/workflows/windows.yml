@@ -145,6 +145,11 @@ jobs:
 
           Set-Content -Path $scriptPath -Value $scriptContent -Encoding UTF8
 
+          $taskName = "ApplyThemeOnLogin"
+          $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File `"$scriptPath`""
+          $trigger = New-ScheduledTaskTrigger -AtLogOn -User "user"
+          Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Force
+
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "$env:HOSTNAME are ready!"
