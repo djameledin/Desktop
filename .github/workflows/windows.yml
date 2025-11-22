@@ -13,7 +13,6 @@ jobs:
         run: |
           Add-Type -AssemblyName System.Security
 
-          # Character sets
           $chars = @{
               Upper = [char[]](65..90)
               Lower = [char[]](97..122)
@@ -21,7 +20,6 @@ jobs:
               Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
           }
 
-          # Build 8-character password: 3 Upper + 3 Lower + 1 Number + 1 Special
           $passwordArray = @()
           $passwordArray += $chars.Upper   | Get-Random -Count 3
           $passwordArray += $chars.Lower   | Get-Random -Count 3
@@ -31,7 +29,6 @@ jobs:
 
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
-          # Create user if not exists
           if (-not (Get-LocalUser -Name "user" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
               Write-Host "User 'user' created successfully."
@@ -52,13 +49,13 @@ jobs:
           $hostname = "$osName/$osUpdate"
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
           Write-Host "Hostname set to: $hostname"
-        
+
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
-          
+
           Write-Host "Starting Tailscale connection..."
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
 
@@ -77,34 +74,31 @@ jobs:
 
       - name: Install bundles
         run: |
-          # Force TLS 1.2 for modern HTTPS downloads
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
           function Download-File {
-          param (
-             [string]$Url,
+            param (
+              [string]$Url,
               [string]$Destination,
               [int]$Retries = 3,
               [int]$DelaySeconds = 5
-          )
+            )
 
-          $attempt = 0
-          while ($attempt -lt $Retries) {
+            $attempt = 0
+            while ($attempt -lt $Retries) {
               try {
-                  Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
-                  if (Test-Path $Destination) {
-                      return
-                  }
+                Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
+                if (Test-Path $Destination) { return }
               } catch {
-                  Write-Warning "Attempt $($attempt+1) failed for $Url"
+                Write-Warning "Attempt $($attempt+1) failed for $Url"
               }
               $attempt++
               Start-Sleep -Seconds $DelaySeconds
+            }
+            Write-Error "Failed to download $Url after $Retries attempts"
+            exit 1
           }
-          Write-Error "Failed to download $Url after $Retries attempts"
-          exit 1 }
 
-          # Install PowerToys
           $ptUrl = "https://github.com/microsoft/PowerToys/releases/download/v0.95.1/PowerToysSetup-0.95.1-x64.exe"
           $ptInstaller = "$env:TEMP\PowerToysSetup.exe"
           Download-File -Url $ptUrl -Destination $ptInstaller
@@ -112,7 +106,6 @@ jobs:
           Remove-Item $ptInstaller -Force
           Write-Host "PowerToys installed successfully."
 
-          # Install Steam
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
           $steamInstaller = "$env:TEMP\SteamSetup.exe"
           Download-File -Url $steamUrl -Destination $steamInstaller
@@ -120,11 +113,32 @@ jobs:
           Remove-Item $steamInstaller -Force
           Write-Host "Steam installed successfully."
 
+      - name: Set Theme With Fixed Wallpaper
+        run: |
+          $hour = (Get-Date).Hour
+          $wallpaper = "$env:USERPROFILE\Pictures\wallpaper.jpg"
+
+          if (-not (Test-Path $wallpaper)) {
+              Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile $wallpaper
+          }
+
+          if ($hour -ge 6 -and $hour -lt 18) {
+              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 1
+              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 1
+              Write-Host "Morning (Light) mode applied."
+          } else {
+              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0
+              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 0
+              Write-Host "Evening (Dark) mode applied."
+          }
+
+          rundll32.exe user32.dll, SystemParametersInfo 20, 0, $wallpaper, 3
+
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "$env:HOSTNAME are ready!"
           Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
-          
+
           while ($true) {
               Write-Host " "
               Write-Host "[$(Get-Date)] Keep it Active..."
