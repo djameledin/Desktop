@@ -113,24 +113,24 @@ jobs:
           Remove-Item $steamInstaller -Force
           Write-Host "Steam installed successfully."
 
-      - name: Set Theme With Fixed Wallpaper
+      - name: Set Theme & Fixed Wallpaper Automatically
         run: |
-          $hour = (Get-Date).Hour
-          $wallpaper = "$env:USERPROFILE\Pictures\wallpaper.jpg"
+          $wallpaper = "$env:USERPROFILE\Pictures\wallpaper.png"
 
           if (-not (Test-Path $wallpaper)) {
-              Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile $wallpaper
+           Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile $wallpaper
           }
 
-          if ($hour -ge 6 -and $hour -lt 18) {
-              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 1
-              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 1
-              Write-Host "Morning (Light) mode applied."
+          if ((Get-Date).Hour -ge 6 -and (Get-Date).Hour -lt 18) {
+          $mode = 1
+          Write-Host "Light mode applied."
           } else {
-              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0
-              Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 0
-              Write-Host "Evening (Dark) mode applied."
+          $mode = 0
+          Write-Host "Dark mode applied."
           }
+
+          Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" $mode
+          Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" $mode
 
           rundll32.exe user32.dll, SystemParametersInfo 20, 0, $wallpaper, 3
 
