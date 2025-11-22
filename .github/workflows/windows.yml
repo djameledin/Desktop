@@ -31,6 +31,9 @@ jobs:
 
           if (-not (Get-LocalUser -Name "user" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "user" -Password $securePass -AccountNeverExpires
+              Write-Host "User 'user' created successfully."
+          } else {
+              Write-Host "User 'user' already exists."
           }
 
           Add-LocalGroupMember -Group "Administrators" -Member "user"
@@ -45,6 +48,7 @@ jobs:
           $osUpdate = (Get-ComputerInfo -Property "DisplayVersion").DisplayVersion
           $hostname = "$osName/$osUpdate"
           echo "HOSTNAME=$hostname" >> $env:GITHUB_ENV
+          Write-Host "Hostname set to: $hostname"
 
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
@@ -52,6 +56,7 @@ jobs:
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
 
+          Write-Host "Starting Tailscale connection..."
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
 
           $tsIP = $null
@@ -62,7 +67,10 @@ jobs:
               $retries++
           }
 
+          if (-not $tsIP) { Write-Error "Tailscale IP not assigned"; exit 1 }
+
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
+          Write-Host "Tailscale IP assigned: $tsIP"
 
       - name: Install bundles
         run: |
@@ -71,9 +79,24 @@ jobs:
           function Download-File {
             param (
               [string]$Url,
-              [string]$Destination
+              [string]$Destination,
+              [int]$Retries = 3,
+              [int]$DelaySeconds = 5
             )
-            Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
+
+            $attempt = 0
+            while ($attempt -lt $Retries) {
+              try {
+                Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
+                if (Test-Path $Destination) { return }
+              } catch {
+                Write-Warning "Attempt $($attempt+1) failed for $Url"
+              }
+              $attempt++
+              Start-Sleep -Seconds $DelaySeconds
+            }
+            Write-Error "Failed to download $Url after $Retries attempts"
+            exit 1
           }
 
           $ptUrl = "https://github.com/microsoft/PowerToys/releases/download/v0.95.1/PowerToysSetup-0.95.1-x64.exe"
@@ -81,50 +104,54 @@ jobs:
           Download-File -Url $ptUrl -Destination $ptInstaller
           Start-Process -FilePath $ptInstaller -ArgumentList "/quiet" -Wait
           Remove-Item $ptInstaller -Force
+          Write-Host "PowerToys installed successfully."
 
           $steamUrl = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
           $steamInstaller = "$env:TEMP\SteamSetup.exe"
           Download-File -Url $steamUrl -Destination $steamInstaller
           Start-Process -FilePath $steamInstaller -ArgumentList "/S" -Wait
           Remove-Item $steamInstaller -Force
+          Write-Host "Steam installed successfully."
 
-      - name: Create User Session Theme Script
+      - name: Create login‑theme script
         run: |
-          $startupFolder = "C:\Users\user\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-          New-Item -ItemType Directory -Force -Path $startupFolder
+          $startup = "C:\Users\user\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+          New-Item -ItemType Directory -Force -Path $startup
 
-          $scriptPath = "$startupFolder\apply_theme.ps1"
+          $scriptPath = "$startup\apply_theme.ps1"
 
-          $content = @'
-          
-          $wallpaper = "$env:USERPROFILE\Pictures\wallpaper.png"
+          $scriptContent = @'
+          $hour = (Get-Date).Hour
+          $wall = "$env:USERPROFILE\Pictures\wallpaper.jpg"
 
-          if (-not (Test-Path $wallpaper)) {
-            Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile $wallpaper
+          # Download wallpaper if not exist
+          if (-not (Test-Path $wall)) {
+            Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile $wall
           }
 
-          if ((Get-Date).Hour -ge 6 -and (Get-Date).Hour -lt 18) {
+          # Light/Dark mode based on time
+          if ($hour -ge 6 -and $hour -lt 18) {
             $mode = 1
           } else {
             $mode = 0
           }
 
-          Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" $mode
-          Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" $mode
+          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value $mode
+          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value $mode
 
-          rundll32.exe user32.dll, SystemParametersInfo 20, 0, $wallpaper, 3
+          # Apply wallpaper
+          rundll32.exe user32.dll, SystemParametersInfo 20, 0, $wall, 3
           '@
-          Set-Content -Path $scriptPath -Value $content -Encoding UTF8
+
+          Set-Content -Path $scriptPath -Value $scriptContent -Encoding UTF8
 
       - name: Maintain Connection & Show Info
         run: |
-          # 
-          Write-Host "$env:HOSTNAME is ready!"
-          Write-Host " Username : $env:RDP_USER"
-          Write-Host " Password : $env:RDP_PASS"
+          Write-Host "$env:HOSTNAME are ready!"
+          Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
 
           while ($true) {
               Write-Host " "
-              Write-Host "[$(Get-Date)] Keep Alive..."
+              Write-Host "[$(Get-Date)] Keep it Active..."
               Start-Sleep -Seconds 300
           }
