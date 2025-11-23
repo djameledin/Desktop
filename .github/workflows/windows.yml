@@ -115,7 +115,7 @@ jobs:
 
       - name: Customize Windows
         run: |
-          $desktop = [Environment]::GetFolderPath("Desktop")
+          $desktop = "C:\Users\user\Desktop"
           New-Item -ItemType Directory -Force -Path $desktop
 
           $bat = "$desktop\apply_theme.bat"
