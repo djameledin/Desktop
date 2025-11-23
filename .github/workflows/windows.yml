@@ -121,7 +121,10 @@ jobs:
           $bat = "$startup\apply_theme.bat"
           $batContent = @'
           @echo off
-          timeout /t 10 >nul
+          timeout /t 5 >nul
+
+          del "%USERPROFILE%\Desktop\*.lnk" /f /q
+          del "%PUBLIC%\Desktop\*.lnk" /f /q
 
           set wallDir=%USERPROFILE%\Pictures
           set wall=%wallDir%\wallpaper.jpg
@@ -129,7 +132,7 @@ jobs:
           if not exist "%wallDir%" mkdir "%wallDir%"
 
           if not exist "%wall%" (
-              powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%wall%'"
+             powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%wall%'"
           )
 
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop" /v NoChangingWallPaper /t REG_DWORD /d 0 /f
@@ -145,7 +148,17 @@ jobs:
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d %mode% /f
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d %mode% /f
 
-          powershell -command "Add-Type -TypeDefinition '[DllImport(\"user32.dll\")]public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);' -Name WinAPI -Namespace Native; [Native.WinAPI]::SystemParametersInfo(20,0,\"%wall%\",3)"         
+          taskkill /f /im explorer.exe
+          start explorer.exe
+
+          powershell -Command ^
+              "Add-Type -AssemblyName PresentationFramework; " ^
+              "[System.Windows.SystemParameters]::Wallpaper = '%wall%'; " ^
+              "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name Wallpaper -Value '%wall%'; " ^
+              "RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters"
+
+          echo Done! Desktop shortcuts removed, wallpaper applied, and theme updated.
+          pause
           '@
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII
