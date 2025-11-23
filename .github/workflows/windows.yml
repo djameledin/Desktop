@@ -115,10 +115,10 @@ jobs:
 
       - name: Customize Windows
         run: |
-          $startup = "C:\Users\user\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-          New-Item -ItemType Directory -Force -Path $startup
+          $desktop = [Environment]::GetFolderPath("Desktop")
+          New-Item -ItemType Directory -Force -Path $desktop
 
-          $bat = "$startup\apply_theme.bat"
+          $bat = "$desktop\apply_theme.bat"
           $batContent = @'
           @echo off
           timeout /t 5 >nul
@@ -162,6 +162,7 @@ jobs:
           '@
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII
+
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "$env:HOSTNAME are ready!"
