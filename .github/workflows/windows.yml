@@ -113,44 +113,45 @@ jobs:
           Remove-Item $steamInstaller -Force
           Write-Host "Steam installed successfully."
 
-      - name: Create login-theme script
+      - name: Customize Windowsa
         run: |
           $startup = "C:\Users\user\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
           New-Item -ItemType Directory -Force -Path $startup
 
-          # PowerShell script
-          $ps1 = "$startup\apply_theme.ps1"
-          $scriptContent = @'
-          $hour = (Get-Date).Hour
-          $wallDir = "$env:USERPROFILE\Pictures"
-          $wall = "$wallDir\wallpaper.jpg"
-
-          if (-not (Test-Path $wallDir)) {
-            New-Item -ItemType Directory -Force -Path $wallDir | Out-Null
-          }
-
-          # Download wallpaper
-          if (-not (Test-Path $wall)) {
-            Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile $wall
-          }
-
-          # Light/Dark mode
-          $mode = if ($hour -ge 6 -and $hour -lt 18) { 1 } else { 0 }
-
-          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value $mode
-          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value $mode
-
-          # Apply wallpaper
-          rundll32.exe user32.dll, SystemParametersInfo 20, 0, $wall, 3
-          '@
-          Set-Content -Path $ps1 -Value $scriptContent -Encoding UTF8
-
-          # Create BAT launcher
           $bat = "$startup\apply_theme.bat"
-          $batContent = 'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\apply_theme.ps1"'
+          $batContent = @'
+          @echo off
+          set wallDir=%USERPROFILE%\Pictures
+          set wall=%wallDir%\wallpaper.jpg
+
+          REM Create Pictures folder if missing
+          if not exist "%wallDir%" (
+              mkdir "%wallDir%"
+          )
+
+          REM Download wallpaper if missing
+          if not exist "%wall%" (
+              powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%wall%'"
+          )
+
+          REM Detect time (light before 18:00)
+          for /f "tokens=1 delims=:" %%a in ("%time%") do set hour=%%a
+
+          if %hour% GEQ 6 if %hour% LSS 18 (
+              set mode=1
+          ) else (
+              set mode=0
+          )
+
+          REM Apply light/dark mode through registry
+          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d %mode% /f
+          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d %mode% /f
+
+          REM Apply wallpaper
+          rundll32.exe user32.dll, SystemParametersInfo 20, 0, %wall%, 3
+          '@
+
           Set-Content -Path $bat -Value $batContent -Encoding ASCII
-
-
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "$env:HOSTNAME are ready!"
