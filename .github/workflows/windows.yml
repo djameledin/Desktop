@@ -115,10 +115,10 @@ jobs:
 
       - name: Customize Windows
         run: |
-          $desktop = "C:\Users\user\Desktop"
+          $desktop = "%USERPROFILE%\Desktop"
           New-Item -ItemType Directory -Force -Path $desktop
 
-          $bat = "$desktop\apply_theme.bat"
+          $bat = "$desktop\apply_changes.bat"
           $batContent = @'
           @echo off
           timeout /t 5 >nul
