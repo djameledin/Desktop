@@ -121,20 +121,19 @@ jobs:
           $bat = "$startup\apply_theme.bat"
           $batContent = @'
           @echo off
+          timeout /t 10 >nul
+
           set wallDir=%USERPROFILE%\Pictures
           set wall=%wallDir%\wallpaper.jpg
 
-          REM Create Pictures folder if missing
-          if not exist "%wallDir%" (
-              mkdir "%wallDir%"
-          )
+          if not exist "%wallDir%" mkdir "%wallDir%"
 
-          REM Download wallpaper if missing
           if not exist "%wall%" (
               powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%wall%'"
           )
 
-          REM Detect time (light before 18:00)
+          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop" /v NoChangingWallPaper /t REG_DWORD /d 0 /f
+
           for /f "tokens=1 delims=:" %%a in ("%time%") do set hour=%%a
 
           if %hour% GEQ 6 if %hour% LSS 18 (
@@ -143,12 +142,10 @@ jobs:
               set mode=0
           )
 
-          REM Apply light/dark mode through registry
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d %mode% /f
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d %mode% /f
 
-          REM Apply wallpaper
-          rundll32.exe user32.dll, SystemParametersInfo 20, 0, %wall%, 3
+          powershell -command "Add-Type -TypeDefinition '[DllImport(\"user32.dll\")]public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);' -Name WinAPI -Namespace Native; [Native.WinAPI]::SystemParametersInfo(20,0,\"%wall%\",3)"         
           '@
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII
