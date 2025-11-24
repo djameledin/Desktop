@@ -120,7 +120,8 @@ jobs:
 
           $bat = "$publicDesktop\apply_theme.bat"
 
-          $batContent = '@echo off
+          $batContent = '
+          @echo off
           for /d %%u in (C:\Users\*) do (
               if exist "%%u\Desktop" (
                   del /q "%%u\Desktop\*.lnk"
@@ -145,7 +146,9 @@ jobs:
               reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul
           )
 
-          rundll32.exe user32.dll, SystemParametersInfo 20, 0, "%USERPROFILE%\Pictures\wallpaper.jpg", 3
+          powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+          Add-Type @"using System.Runtime.InteropServices; public class WP { [DllImport("user32.dll", SetLastError=true)] public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni); }"@; ^
+          [WP]::SystemParametersInfo(20,0,"%USERPROFILE%\Pictures\wallpaper.jpg",3) | Out-Null
 
           taskkill /f /im explorer.exe >nul 2>&1
           start explorer.exe'
