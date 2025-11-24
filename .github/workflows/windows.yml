@@ -119,37 +119,36 @@ jobs:
           $bat = "$desktop\apply_changes.bat"
 
           $batContent = @'
-          @echo off
-          timeout /t 2 >nul
+          $usersPath = "C:\Users"
 
-          for /d %%i in (C:\Users\*) do (
-              if /i not "%%~nxi"=="Public" (
-                  if /i not "%%~nxi"=="Default" (
-                      if /i not "%%~nxi"=="runneradmin" (
-                          if /i not "%%~nxi"=="runneruser" (
-                              set "REALUSER=%%i"
-                              goto foundUser
-                          )
-                      )
-                  )
-              )
+          $skip = @("Public", "Default", "Default User", "All Users", "runneruser", "runneradmin")
+
+          $batTemplate = @'
+          @echo off
+          timeout /t 1 >nul
+
+          set "REALUSER=__USERPATH__"
+          set "WALL_DIR=%REALUSER%\Pictures"
+          set "WALL_DAY=%WALL_DIR%\wallpaper_day.jpg"
+          set "WALL_NIGHT=%WALL_DIR%\wallpaper_night.jpg"
+
+          if not exist "%WALL_DIR%" mkdir "%WALL_DIR%"
+
+          if not exist "%WALL_DAY%" (
+              powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%WALL_DAY%'"
           )
 
-          echo Detected user: %REALUSER%
-
-          set "wall=%REALUSER%\Pictures\wallpaper.jpg"
-
-          if not exist "%REALUSER%\Pictures" mkdir "%REALUSER%\Pictures"
-
-          if not exist "%wall%" (
-              powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%wall%'"
+          if not exist "%WALL_NIGHT%" (
+              powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-2.png' -OutFile '%WALL_NIGHT%'"
           )
 
           for /f "tokens=1 delims=:" %%a in ("%time%") do set hour=%%a
 
           if %hour% GEQ 6 if %hour% LSS 18 (
+              set "WALL=%WALL_DAY%"
               set mode=1
           ) else (
+              set "WALL=%WALL_NIGHT%"
               set mode=0
           )
 
@@ -159,14 +158,32 @@ jobs:
           powershell -Command ^
               "$code='[DllImport(""user32.dll"",SetLastError=true)]public static extern bool SystemParametersInfo(int uAction,int uParam,string lpvParam,int fuWinIni);'; " ^
               "Add-Type -MemberDefinition $code -Name 'Win32' -Namespace 'WallpaperSetter'; " ^
-              "[WallpaperSetter.Win32]::SystemParametersInfo(20,0,'%wall%',3)"
+              "[WallpaperSetter.Win32]::SystemParametersInfo(20,0,'%WALL%',3)"
 
           del "%REALUSER%\Desktop\*.lnk" /f /q
           del "%PUBLIC%\Desktop\*.lnk" /f /q
 
+          taskkill /f /im explorer.exe >nul
+          timeout /t 1 >nul
+          start explorer.exe
+
           echo Done!
           pause
           '@
+
+          foreach ($user in Get-ChildItem $usersPath) {
+
+          if ($skip -contains $user.Name) { continue }
+
+          $realPath = "$usersPath\$($user.Name)"
+          $desktopBat = "$realPath\Desktop\apply_changes.bat"
+
+          $batContent = $batTemplate.Replace("__USERPATH__", $realPath)
+
+          Set-Content -Path $desktopBat -Value $batContent -Encoding ASCII
+
+          Write-Host "Created: $desktopBat"
+          }
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII
       - name: Maintain Connection & Show Info
