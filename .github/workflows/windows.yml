@@ -122,36 +122,34 @@ jobs:
 
           $batContent = '
           @echo off
-          for /d %%u in (C:\Users\*) do (
-              if exist "%%u\Desktop" (
-                  del /q "%%u\Desktop\*.lnk"
-              )
-          )
+for /d %%u in (C:\Users*) do (
+if exist "%%u\Desktop" (
+del /q "%%u\Desktop*.lnk"
+)
+)
 
-          if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures"
+if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures"
 
-          if not exist "%USERPROFILE%\Pictures\wallpaper.jpg" (
-              powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-                  Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile "%USERPROFILE%\Pictures\wallpaper.jpg"
-          )
+if not exist "%USERPROFILE%\Pictures\wallpaper.jpg" (
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile "%USERPROFILE%\Pictures\wallpaper.jpg"
+)
 
-          for /f "tokens=1 delims=:" %%H in ("%time%") do set hour=%%H
-          setlocal enabledelayedexpansion
+for /f "tokens=1 delims=:" %%H in ("%time%") do set hour=%%H
+setlocal enabledelayedexpansion
 
-          if %hour% GEQ 6 if %hour% LSS 18 (
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f >nul
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f >nul
-          ) else (
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul
-          )
+if %hour% GEQ 6 if %hour% LSS 18 (
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f >nul
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f >nul
+) else (
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul
+)
 
-          powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-          Add-Type @"using System.Runtime.InteropServices; public class WP { [DllImport("user32.dll", SetLastError=true)] public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni); }"@; ^
-          [WP]::SystemParametersInfo(20,0,"%USERPROFILE%\Pictures\wallpaper.jpg",3) | Out-Null
+rundll32.exe user32.dll, SystemParametersInfo 20, 0, "%USERPROFILE%\Pictures\wallpaper", 3
 
-          taskkill /f /im explorer.exe >nul 2>&1
-          start explorer.exe'
+taskkill /f /im explorer.exe >nul 2>&1
+start explorer.exe'
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
       - name: Maintain Connection & Show Info
