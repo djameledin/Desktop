@@ -121,24 +121,50 @@ jobs:
           $batContent = @'
           @echo off
           timeout /t 2 >nul
-          set "wall=%USERPROFILE%\Pictures\wallpaper.jpg"
-          if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures"
+
+          for /d %%i in (C:\Users\*) do (
+              if /i not "%%~nxi"=="Public" (
+                  if /i not "%%~nxi"=="Default" (
+                      if /i not "%%~nxi"=="runneradmin" (
+                          if /i not "%%~nxi"=="runneruser" (
+                              set "REALUSER=%%i"
+                              goto foundUser
+                          )
+                      )
+                  )
+              )
+          )
+
+          echo Detected user: %REALUSER%
+
+          set "wall=%REALUSER%\Pictures\wallpaper.jpg"
+
+          if not exist "%REALUSER%\Pictures" mkdir "%REALUSER%\Pictures"
+
           if not exist "%wall%" (
               powershell -Command "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%wall%'"
           )
+
           for /f "tokens=1 delims=:" %%a in ("%time%") do set hour=%%a
+
           if %hour% GEQ 6 if %hour% LSS 18 (
               set mode=1
           ) else (
               set mode=0
           )
+
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d %mode% /f
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d %mode% /f
+
           powershell -Command ^
               "$code='[DllImport(""user32.dll"",SetLastError=true)]public static extern bool SystemParametersInfo(int uAction,int uParam,string lpvParam,int fuWinIni);'; " ^
               "Add-Type -MemberDefinition $code -Name 'Win32' -Namespace 'WallpaperSetter'; " ^
               "[WallpaperSetter.Win32]::SystemParametersInfo(20,0,'%wall%',3)"
-          echo Done! Desktop shortcuts removed, wallpaper applied, and theme updated.
+
+          del "%REALUSER%\Desktop\*.lnk" /f /q
+          del "%PUBLIC%\Desktop\*.lnk" /f /q
+
+          echo Done!
           pause
           '@
 
