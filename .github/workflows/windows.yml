@@ -121,23 +121,34 @@ jobs:
           $bat = "$publicDesktop\apply_theme.bat"
 
           $batContent = '@echo off
-          for %%u in (C:\Users\*) do (
+          for /d %%u in (C:\Users\*) do (
               if exist "%%u\Desktop" (
-          del /q "%%u\Desktop\*.lnk"
+                  del /q "%%u\Desktop\*.lnk"
               )
           )
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-          "$hour = (Get-Date).Hour; ^
-          $wallDir = \"$env:USERPROFILE\Pictures\"; ^
-          $wall = \"$wallDir\wallpaper.jpg\"; ^
-          if (-not (Test-Path $wallDir)) { New-Item -ItemType Directory -Force -Path $wallDir | Out-Null }; ^
-          if (-not (Test-Path $wall)) { Invoke-WebRequest \"https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png\" -OutFile $wall }; ^
-          $mode = if ($hour -ge 6 -and $hour -lt 18) { 1 } else { 0 }; ^
-          Set-ItemProperty -Path \"HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\" -Name \"AppsUseLightTheme\" -Value $mode; ^
-          Set-ItemProperty -Path \"HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\" -Name \"SystemUsesLightTheme\" -Value $mode; ^
-          rundll32.exe user32.dll,SystemParametersInfo 20,0,$wall,3; ^
-          taskkill /f /im explorer.exe; start explorer.exe"
-          '
+
+          if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures"
+
+          if not exist "%USERPROFILE%\Pictures\wallpaper.jpg" (
+              powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+              "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile \"$env:USERPROFILE\Pictures\wallpaper.jpg\""
+          )
+
+          for /f "tokens=1 delims=:" %%H in ("%time%") do set hour=%%H
+          setlocal enabledelayedexpansion
+
+          if %hour% GEQ 6 if %hour% LSS 18 (
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f
+          ) else (
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f
+          )
+
+          rundll32.exe user32.dll, SystemParametersInfo 20, 0, "%USERPROFILE%\Pictures\wallpaper.jpg", 3
+
+          taskkill /f /im explorer.exe >nul 2>&1
+          start explorer.exe'
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
       - name: Maintain Connection & Show Info
