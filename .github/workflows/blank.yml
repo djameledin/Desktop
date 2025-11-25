@@ -70,8 +70,7 @@ jobs:
         run: |
          $tools = @(
              @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-0.96.0-x64.exe'; installer = 'PowerToys.exe'; args = "/silent" },
-             @{ name = 'QuickLook'; url = 'https://example.com/QuickLookInstaller.exe'; installer = 'QuickLook.exe'; args = "/silent" },
-             @{ name = 'WinToys'; url = 'https://example.com/WinToysInstaller.msi'; installer = 'WinToys.msi'; args = "/quiet /norestart" }
+             @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/download/v4.2.2/QuickLookInstaller.msi'; installer = 'QuickLook.msi'; args = "/silent" },
          )
 
          $tempDir = "$env:TEMP\ToolsInstall"
