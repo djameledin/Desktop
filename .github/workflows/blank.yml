@@ -68,22 +68,25 @@ jobs:
 
       - name: Install bundles
         run: |
-         winget source update
+         $tools = @(
+             @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/latest/download/PowerToysSetup-0.96.0-x64.exe'; installer = 'PowerToys.exe'; args = "/silent" },
+             @{ name = 'QuickLook'; url = 'https://example.com/QuickLookInstaller.exe'; installer = 'QuickLook.exe'; args = "/silent" },
+             @{ name = 'WinToys'; url = 'https://example.com/WinToysInstaller.msi'; installer = 'WinToys.msi'; args = "/quiet /norestart" }
+         )
 
-         Write-Host "Installing PowerToys..."
-         winget install --id Microsoft.PowerToys --exact --silent --accept-package-agreements --accept-source-agreements
-
-         Write-Host "Installing QuickLook..."
-         winget install --id QL‑Win.QuickLook --exact --silent --accept-package-agreements --accept-source-agreements
-
-         Write-Host "Installing WinToys..."
-         winget install --id 9P8LTPGCBZXD --exact --silent --accept-package-agreements --accept-source-agreements
-
-         Write-Host "Installation commands via winget have been executed."
- 
-         if ($LASTEXITCODE -ne 0) {
-             Write-Host "One or more installations failed via winget. You can add fallback logic here."
+         $tempDir = "$env:TEMP\ToolsInstall"
+         if (-not (Test-Path $tempDir)) {
+             New-Item -ItemType Directory -Path $tempDir | Out-Null
          }
+
+         foreach ($tool in $tools) {
+             $outPath = Join-Path $tempDir $tool.installer
+             Write-Host "Downloading $($tool.name) from $($tool.url)"
+             Invoke-WebRequest -Uri $tool.url -OutFile $outPath
+             Write-Host "Downloaded to $outPath — installing..."
+            Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
+         }
+         Write-Host "All installations attempted."
 
       - name: Customize Windows
         run: |
