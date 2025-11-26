@@ -68,24 +68,31 @@ jobs:
 
       - name: Install bundles
         run: |
-         $tools = @(
-             @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/download/v0.96.1/PowerToysSetup-0.96.1-x64.exe'; installer = 'PowerToysSetup.exe'; args = "/silent"}
-             @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/download/latest/QuickLook-4.2.2-19-g76dfa34.msi'; installer = 'QuickLook.msi'; args = "/silent"}
-         )
+          $tools = @(
+              @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/download/v0.96.1/PowerToysSetup-0.96.1-x64.exe'; args = "/silent" },
+              @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/latest/download/QuickLook.msi'; args = "/quiet" }
+          )
 
-         $tempDir = "$env:TEMP\ToolsInstall"
-         if (-not (Test-Path $tempDir)) {
-             New-Item -ItemType Directory -Path $tempDir | Out-Null
-         }
+          $tempDir = "$env:TEMP\ToolsInstall"
+          if (-not (Test-Path $tempDir)) {
+              New-Item -ItemType Directory -Path $tempDir | Out-Null
+          }
 
-         foreach ($tool in $tools) {
-             $outPath = Join-Path $tempDir $tool.installer
-             Write-Host "Downloading $($tool.name) from $($tool.url)"
-             Invoke-WebRequest -Uri $tool.url -OutFile $outPath
-             Write-Host "Downloaded to $outPath — installing..."
-            Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
-         }
-         Write-Host "All installations attempted."
+          foreach ($tool in $tools) {
+
+              $fileName = Split-Path $tool.url -Leaf
+              $outPath = Join-Path $tempDir $fileName
+
+              Write-Host "Downloading $($tool.name)"
+
+              Invoke-WebRequest -Uri $tool.url -OutFile $outPath -Headers @{
+                  "User-Agent" = "Mozilla/5.0"
+          }
+
+          Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
+          }
+
+          Write-Host "All installations attempted."
 
       - name: Customize Windows
         run: |
