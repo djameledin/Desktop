@@ -73,17 +73,16 @@ jobs:
             @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/download/latest/QuickLook-4.2.2-19-g76dfa34.msi'; args = "/quiet" }
           )
 
-          $tempDir = "$env:TEMP\ToolsInstall"
-          if (-not (Test-Path $tempDir)) {
-              New-Item -ItemType Directory -Path $tempDir | Out-Null
+          $downloadDir = "C:\Users\Public\Downloads"
+          if (-not (Test-Path $downloadDir)) {
+              New-Item -ItemType Directory -Path $downloadDir | Out-Null
           }
 
           foreach ($tool in $tools) {
-
               $fileName = Split-Path $tool.url -Leaf
               $outPath = Join-Path $tempDir $fileName
 
-          Write-Host "Downloading $($tool.name) ..."
+              Write-Host "Downloading $($tool.name) ..."
 
           $response = Invoke-WebRequest `
                   -Uri $tool.url `
