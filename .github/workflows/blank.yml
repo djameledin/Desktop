@@ -69,8 +69,8 @@ jobs:
       - name: Install bundles
         run: |
           $tools = @(
-              @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/download/v0.96.1/PowerToysSetup-0.96.1-x64.exe'; args = "/silent" },
-              @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/latest/download/QuickLook.msi'; args = "/quiet" }
+            @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/download/v0.96.1/PowerToysSetup-0.96.1-x64.exe'; args = "/silent" },
+            @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/latest/download/QuickLook.msi'; args = "/quiet" }
           )
 
           $tempDir = "$env:TEMP\ToolsInstall"
@@ -83,11 +83,16 @@ jobs:
               $fileName = Split-Path $tool.url -Leaf
               $outPath = Join-Path $tempDir $fileName
 
-              Write-Host "Downloading $($tool.name)"
+          Write-Host "Downloading $($tool.name) ..."
 
-              Invoke-WebRequest -Uri $tool.url -OutFile $outPath -Headers @{
-                  "User-Agent" = "Mozilla/5.0"
-          }
+          $response = Invoke-WebRequest `
+                  -Uri $tool.url `
+                  -Headers @{ "User-Agent" = "Mozilla/5.0"; "Accept" = "*/*" } `
+                  -MaximumRedirection 5 `
+                  -UseBasicParsing `
+                  -OutFile $outPath
+
+          Write-Host "$($tool.name) downloaded — installing..."
 
           Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
           }
