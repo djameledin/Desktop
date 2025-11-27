@@ -79,24 +79,26 @@ jobs:
           }
 
           foreach ($tool in $tools) {
+
               $fileName = Split-Path $tool.url -Leaf
               $outPath = Join-Path $downloadDir $fileName
 
               Write-Host "Downloading $($tool.name) ..."
 
-          $response = Invoke-WebRequest `
+              Invoke-WebRequest `
                   -Uri $tool.url `
                   -Headers @{ "User-Agent" = "Mozilla/5.0"; "Accept" = "*/*" } `
                   -MaximumRedirection 5 `
                   -UseBasicParsing `
                   -OutFile $outPath
 
-          Write-Host "$($tool.name) downloaded — installing..."
+              Write-Host "$($tool.name) downloaded — installing..."
 
-          Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
+              Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
           }
 
           Write-Host "All installations attempted."
+
 
       - name: Customize Windows
         run: |
