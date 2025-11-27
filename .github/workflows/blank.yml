@@ -80,7 +80,7 @@ jobs:
 
           foreach ($tool in $tools) {
               $fileName = Split-Path $tool.url -Leaf
-              $outPath = Join-Path $tempDir $fileName
+              $outPath = Join-Path $downloadDir $fileName
 
               Write-Host "Downloading $($tool.name) ..."
 
