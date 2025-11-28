@@ -67,43 +67,42 @@ jobs:
           Write-Host "Tailscale IP assigned: $tsIP"
 
       - name: Install bundles
-  run: |
-    $tools = @(
-        @{ name = 'PowerToys'; id = 'XP89DCGQ3K6VLD' },
-        @{ name = 'QuickLook'; id = '9NV4BS3L1H4S' }
-    )
+        run: |
+          $tools = @(
+            @{ name = 'PowerToys'; id = 'XP89DCGQ3K6VLD' },
+            @{ name = 'QuickLook'; id = '9NV4BS3L1H4S' }
+          )
 
-    foreach ($tool in $tools) {
-        Write-Host "Checking status of $($tool.name)..."
+          foreach ($tool in $tools) {
+            Write-Host "Checking status of $($tool.name)..."
 
-        $existing = winget list --id $($tool.id) 2>$null | Select-String $($tool.id)
+            $existing = winget list --id $($tool.id) 2>$null | Select-String $($tool.id)
 
-        if ($existing) {
-            Write-Host "$($tool.name) is already installed. Skipping..."
-            continue
-        }
+          if ($existing) {
+              Write-Host "$($tool.name) is already installed. Skipping..."
+              continue
+          }
 
-        Write-Host "Starting installation of $($tool.name) from Microsoft Store..."
+          Write-Host "Starting installation of $($tool.name) from Microsoft Store..."
 
-        try {
-            winget install `
-                --id $($tool.id) `
-                --source msstore `
-                --silent `
-                --accept-source-agreements `
-                --accept-package-agreements
+          try {
+              winget install `
+                  --id $($tool.id) `
+                  --source msstore `
+                  --silent `
+                  --accept-source-agreements `
+                  --accept-package-agreements
 
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "$($tool.name) installed successfully."
-            } else {
-                Write-Host "Failed to install $($tool.name). Exit code: $LASTEXITCODE"
-            }
-        } catch {
-            Write-Host "Exception occurred while installing $($tool.name): $_"
-        }
-    }
+              if ($LASTEXITCODE -eq 0) {
+                  Write-Host "$($tool.name) installed successfully."
+              } else {
+                  Write-Host "Failed to install $($tool.name). Exit code: $LASTEXITCODE"
+              }
+          } catch {
+              Write-Host "Exception occurred while installing $($tool.name): $_"
+          }
 
-    Write-Host "All installation attempts completed."
+          Write-Host "All installation attempts completed."
 
       - name: Customize Windows
         run: |
