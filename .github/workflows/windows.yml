@@ -73,7 +73,7 @@ jobs:
 
           $bat = "$publicDesktop\apply_theme.bat"
 
-          $batContent = '
+          $batContent = @"
           @echo off
           setlocal enabledelayedexpansion
 
@@ -109,12 +109,13 @@ jobs:
           taskkill /f /im explorer.exe >nul 2>&1
           start explorer.exe >nul 2>&1
 
-          echo Done.'
+          echo Done.
+          "@
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
       - name: Maintain Connection & Show Info
         run: |
-          Write-Host "$env:HOSTNAME are ready!"
+          Write-Host "This Virtual Machine are ready!"
           Write-Host " Username : $env:RDP_USER ; Password : $env:RDP_PASS"
 
           while ($true) {
