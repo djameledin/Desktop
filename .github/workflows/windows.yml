@@ -85,6 +85,9 @@ jobs:
               )
           )
 
+          winget install --id=XP89DCGQ3K6VLD --silent >nul 2>&1
+          winget install --id=9NV4BS3L1H4S --silent >nul 2>&1
+          
           if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures" >nul 2>&1
 
           if not exist "%USERPROFILE%\Pictures\wallpaper.jpg" (
@@ -102,9 +105,6 @@ jobs:
               reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
               reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul 2>&1
           )
-
-          winget install --id=XP89DCGQ3K6VLD --silent >nul 2>&1
-          winget install --id=9NV4BS3L1H4S --silent >nul 2>&1
 
           taskkill /f /im explorer.exe >nul 2>&1
           start explorer.exe >nul 2>&1
