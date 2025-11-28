@@ -71,86 +71,123 @@ jobs:
           $publicDesktop = "C:\Users\Public\Desktop"
           New-Item -ItemType Directory -Force -Path $publicDesktop | Out-Null
 
-          $bat = "$publicDesktop\untitled.bat"
+          $ps1 = "$publicDesktop/Untitled.ps1"
 
-          $batContent = @"
-          @echo off
-          net session >nul 2>&1
-          if %errorlevel% neq 0 (
-              powershell -Command "Start-Process '%~f0' -Verb RunAs"
-              exit /b
-          )
+          $ps1Content = @"
+          # Check if the script is running as Administrator
+          $runAsAdmin = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+          if (-not $runAsAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+              # Relaunch the script as Administrator
+              $args = [System.Environment]::GetCommandLineArgs()
+              Start-Process powershell -ArgumentList $args -Verb runAs
+              exit
+          }
 
-          powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-          "
+          # Remove shortcut files (.lnk) from Desktop for all users
           Get-ChildItem 'C:\Users' -Directory | ForEach-Object {
-              \$desktop = Join-Path \$_.FullName 'Desktop'
-              if (Test-Path \$desktop) {
-                  Get-ChildItem \"\$desktop\*.lnk\" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+              $desktopPath = Join-Path $_.FullName 'Desktop'
+              if (Test-Path $desktopPath) {
+                  Get-ChildItem "$desktopPath\*.lnk" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
               }
           }
 
-          \$picPath = \"\$env:USERPROFILE\Pictures\"
-          if (-not (Test-Path \$picPath)) {
-              New-Item -ItemType Directory -Path \$picPath | Out-Null
+          # Ensure the 'Pictures' directory exists
+          $picturesPath = "C:\Users\runneradmin\Pictures"
+          if (-not (Test-Path $picturesPath)) {
+              try {
+                  New-Item -ItemType Directory -Path $picturesPath | Out-Null
+                  Write-Host "Pictures directory created."
+              } catch {
+                  Write-Host "Failed to create Pictures directory. Check your permissions."
+                  exit
+              }
           }
 
-          \$wallpaper = \"\$picPath\wallpaper.jpg\"
-          if (-not (Test-Path \$wallpaper)) {
-              Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' `
-                  -OutFile \$wallpaper -ErrorAction SilentlyContinue
+          # Download the wallpaper image if it doesn't exist
+          $wallpaperPath = "$picturesPath\wallpaper.jpg"
+          if (-not (Test-Path $wallpaperPath)) {
+              try {
+                  Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile $wallpaperPath -ErrorAction Stop
+                  Write-Host "Wallpaper downloaded successfully."
+              } catch {
+                  Write-Host "Failed to download the wallpaper. Please check the URL or your network connection."
+                  exit
+              }
           }
 
+          # Verify if the wallpaper exists now
+          if (Test-Path $wallpaperPath) {
+              Write-Host "The wallpaper file exists at: $wallpaperPath"
+          } else {
+              Write-Host "Failed to verify that the wallpaper was downloaded."
+              exit
+          }
+
+          # Set the downloaded image as wallpaper
           Add-Type @'
           using System.Runtime.InteropServices;
           public class Wallpaper {
-              [DllImport(\"user32.dll\", SetLastError = true)]
+              [DllImport("user32.dll", SetLastError = true)]
               public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
           }
           '@
+          $setWallpaperResult = [Wallpaper]::SystemParametersInfo(20, 0, $wallpaperPath, 3)
 
-          [Wallpaper]::SystemParametersInfo(20, 0, \$wallpaper, 3)
-
-          \$hour = (Get-Date).Hour
-          \$regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-
-          if (\$hour -ge 6 -and \$hour -lt 18) {
-              Set-ItemProperty \$regPath AppsUseLightTheme 1
-              Set-ItemProperty \$regPath SystemUsesLightTheme 1
-              Set-ItemProperty \$regPath EnableTransparency 1
+          # Verify wallpaper change result
+          if ($setWallpaperResult) {
+              Write-Host "Wallpaper set successfully."
           } else {
-              Set-ItemProperty \$regPath AppsUseLightTheme 0
-              Set-ItemProperty \$regPath SystemUsesLightTheme 0
-              Set-ItemProperty \$regPath EnableTransparency 1
+              Write-Host "Failed to set the wallpaper."
           }
 
-          \$apps = @('PowerToys', 'WinToys', 'QuickLook', 'Microsoft Sticky Notes')
+          # Set the theme based on the current hour
+          $currentHour = (Get-Date).Hour
+          $themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+
+          if ($currentHour -ge 6 -and $currentHour -lt 18) {
+              Set-ItemProperty -Path $themePath -Name AppsUseLightTheme -Value 1
+              Set-ItemProperty -Path $themePath -Name SystemUsesLightTheme -Value 1
+              Set-ItemProperty -Path $themePath -Name EnableTransparency -Value 1
+              Write-Host "Light theme applied."
+          } else {
+              Set-ItemProperty -Path $themePath -Name AppsUseLightTheme -Value 0
+              Set-ItemProperty -Path $themePath -Name SystemUsesLightTheme -Value 0
+              Set-ItemProperty -Path $themePath -Name EnableTransparency -Value 1
+              Write-Host "Dark theme applied."
+          }
+
+          # List of apps to install using winget
+          $appList = @('Wintoys', 'QuickLook')
 
           function Install-App {
-              param([string]\$name)
+              param([string]$appName)
 
-              if (winget list --source=msstore | Select-String -SimpleMatch \$name) {
+              if (winget list --source=msstore | Select-String -SimpleMatch $appName) {
+                  Write-Host "$appName is already installed."
                   return
-          }
-          
-          try {
-            winget install \$name --source=msstore --silent --accept-package-agreements --accept-source-agreements
-            }
-            catch {}
-            }
+              }
 
-          foreach (\$app in \$apps) {
-              Install-App \$app
+              try {
+                  winget install $appName --source=msstore --silent --accept-package-agreements --accept-source-agreements
+                  Write-Host "$appName installed successfully."
+              } catch {
+                  Write-Host "Failed to install $appName."
+              }
           }
 
+          # Install all apps in the list
+          foreach ($app in $appList) {
+              Install-App -appName $app
+          }
+
+          # Restart Explorer to apply changes
+          Write-Host "Restarting Explorer..."
           Start-Sleep -Milliseconds 300
           Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
           Start-Process explorer.exe
-          "
-          pause
+          Write-Host "Explorer restarted successfully."
           "@
-
-          Set-Content -Path $bat -Value $batContent -Encoding ASCII 
+          Set-Content -Path $ps1 -Value $ps1Content -Encoding ASCII 
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "This Virtual Machine are ready!"
