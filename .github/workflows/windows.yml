@@ -40,7 +40,7 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
 
           echo "RDP_USER=user" >> $env:GITHUB_ENV
-          echo "RDP_PASS=$password" >> $env:GITHUB_EV
+          echo "RDP_PASS=$password" >> $env:GITHUB_ENV
 
       - name: Install & Connect Tailscale
         run: |
@@ -71,88 +71,83 @@ jobs:
           $publicDesktop = "C:\Users\Public\Desktop"
           New-Item -ItemType Directory -Force -Path $publicDesktop | Out-Null
 
-          $bat = "$publicDesktop\initialize.bat"
+          $bat = "$publicDesktop\untitled.bat"
 
           $batContent = @"
           @echo off
           net session >nul 2>&1
           if %errorlevel% neq 0 (
-              echo.
-              echo [!] This script must be run as Administrator... Restarting with admin privileges.
-              echo.
               powershell -Command "Start-Process '%~f0' -Verb RunAs"
               exit /b
           )
 
-          echo Script is running with Administrator privileges!
-          
-          setlocal enabledelayedexpansion
-
-          for /d %%u in (C:\Users\*) do (
-              if exist "%%u\Desktop" (
-                  for %%f in ("%%u\Desktop\*.lnk") do (
-                      if exist "%%f" del "%%f" >nul 2>&1
-                  )
-              )
-          )
-
-          if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures" >nul 2>&1
-
-          if not exist "%USERPROFILE%\Pictures\wallpaper.jpg" (
-              powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-             "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%USERPROFILE%\Pictures\wallpaper.jpg'" >nul 2>&1
-          )
-
-          for /f "tokens=1 delims=:" %%H in ("%time%") do set hour=%%H
-
-          if %hour% GEQ 6 if %hour% LSS 18 (
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f >nul 2>&1
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f >nul 2>&1
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul 2>&1
-          ) else (
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
-             reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul 2>&1
-          )
-
-          powershell -NoLogo -NoProfile -Command ^
+          powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
           "
-          $apps = @('PowerToys', 'WinToys','QuickLook', 'Microsoft Sticky Notes')
+          Get-ChildItem 'C:\Users' -Directory | ForEach-Object {
+              \$desktop = Join-Path \$_.FullName 'Desktop'
+              if (Test-Path \$desktop) {
+                  Get-ChildItem \"\$desktop\*.lnk\" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+              }
+          }
+
+          \$picPath = \"\$env:USERPROFILE\Pictures\"
+          if (-not (Test-Path \$picPath)) {
+              New-Item -ItemType Directory -Path \$picPath | Out-Null
+          }
+
+          \$wallpaper = \"\$picPath\wallpaper.jpg\"
+          if (-not (Test-Path \$wallpaper)) {
+              Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' `
+                  -OutFile \$wallpaper -ErrorAction SilentlyContinue
+          }
+
+          Add-Type @'
+          using System.Runtime.InteropServices;
+          public class Wallpaper {
+              [DllImport(\"user32.dll\", SetLastError = true)]
+              public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+          }
+          '@
+
+          [Wallpaper]::SystemParametersInfo(20, 0, \$wallpaper, 3)
+
+          \$hour = (Get-Date).Hour
+          \$regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+
+          if (\$hour -ge 6 -and \$hour -lt 18) {
+              Set-ItemProperty \$regPath AppsUseLightTheme 1
+              Set-ItemProperty \$regPath SystemUsesLightTheme 1
+              Set-ItemProperty \$regPath EnableTransparency 1
+          } else {
+              Set-ItemProperty \$regPath AppsUseLightTheme 0
+              Set-ItemProperty \$regPath SystemUsesLightTheme 0
+              Set-ItemProperty \$regPath EnableTransparency 1
+          }
+
+          \$apps = @('PowerToys', 'WinToys', 'QuickLook', 'Microsoft Sticky Notes')
 
           function Install-App {
-              param([string]$name)
+              param([string]\$name)
 
-              Write-Host "Checking: $name..."
-    
-              if (winget list --exact --source msstore | Select-String -SimpleMatch $name) {
-                  Write-Host "Already installed -> $name" -ForegroundColor Green
+              if (winget list --source=msstore | Select-String -SimpleMatch \$name) {
                   return
           }
+          
+          try {
+            winget install \$name --source=msstore --silent --accept-package-agreements --accept-source-agreements
+            }
+            catch {}
+            }
 
-              Write-Host "Installing -> $name" -ForegroundColor Yellow
-
-              try {
-                  winget install $name --source=msstore --silent --accept-package-agreements --accept-source-agreements
-                  if ($LASTEXITCODE -ne 0) {
-                      Write-Host "Skipped or failed to install -> $name" -ForegroundColor DarkYellow
-                  } else {
-                      Write-Host "Installed successfully -> $name" -ForegroundColor Green
-              }
-          }
-              catch {
-                  Write-Host "Error installing -> $name. Skipping..." -ForegroundColor Red
-              }
+          foreach (\$app in \$apps) {
+              Install-App \$app
           }
 
-          foreach ($app in $apps) {
-              Install-App $app
-          }
+          Start-Sleep -Milliseconds 300
+          Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+          Start-Process explorer.exe
           "
-
-          taskkill /f /im explorer.exe >nul 2>&1
-          start explorer.exe >nul 2>&1
-
-          endlocal
+          pause
           "@
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
