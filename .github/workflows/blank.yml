@@ -68,37 +68,25 @@ jobs:
 
       - name: Install bundles
         run: |
-          $tools = @(
-            @{ name = 'PowerToys'; url = 'https://github.com/microsoft/PowerToys/releases/download/v0.96.1/PowerToysSetup-0.96.1-x64.exe'; args = "/silent" },
-            @{ name = 'QuickLook'; url = 'https://github.com/QL-Win/QuickLook/releases/download/latest/QuickLook-4.2.2-19-g76dfa34.msi'; args = "/quiet" }
-          )
+         $tools = @(
+           @{ name = 'PowerToys'; id = 'Microsoft.PowerToys' },
+           @{ name = 'QuickLook'; id = 'QL-Win.QuickLook' }
+         )
 
-          $downloadDir = "C:\Users\Public\Downloads"
-          if (-not (Test-Path $downloadDir)) {
-              New-Item -ItemType Directory -Path $downloadDir | Out-Null
-          }
+         foreach ($tool in $tools) {
+          Write-Host "Installing $($tool.name) using winget..."
 
-          foreach ($tool in $tools) {
+          winget install `
+           --id $($tool.id) `
+           --silent `
+           --accept-source-agreements `
+           --accept-package-agreements `
+            *> $null
 
-              $fileName = Split-Path $tool.url -Leaf
-              $outPath = Join-Path $downloadDir $fileName
+          Write-Host "$($tool.name) installation attempted."
+         }
 
-              Write-Host "Downloading $($tool.name) ..."
-
-              Invoke-WebRequest `
-                  -Uri $tool.url `
-                  -Headers @{ "User-Agent" = "Mozilla/5.0"; "Accept" = "*/*" } `
-                  -MaximumRedirection 5 `
-                  -UseBasicParsing `
-                  -OutFile $outPath
-
-              Write-Host "$($tool.name) downloaded — installing..."
-
-              Start-Process -FilePath $outPath -ArgumentList $tool.args -Wait
-          }
-
-          Write-Host "All installations attempted."
-
+         Write-Host "All installations attempted via winget."
 
       - name: Customize Windows
         run: |
