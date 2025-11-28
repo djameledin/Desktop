@@ -66,46 +66,7 @@ jobs:
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
           Write-Host "Tailscale IP assigned: $tsIP"
 
-      - name: Install bundles
-        run: |
-          $tools = @(
-            @{ name = 'PowerToys'; id = 'XP89DCGQ3K6VLD' },
-            @{ name = 'QuickLook'; id = '9NV4BS3L1H4S' }
-          )
-
-          foreach ($tool in $tools) {
-              Write-Host "Checking status of $($tool.name)..."
-
-              $existing = winget list --id $($tool.id) 2>$null | Select-String $($tool.id)
-
-            if ($existing) {
-                Write-Host "$($tool.name) is already installed. Skipping..."
-                continue
-            }
-
-            Write-Host "Starting installation of $($tool.name) from Microsoft Store..."
-
-            try {
-                winget install `
-                    --id $($tool.id) `
-                    --source msstore `
-                    --silent `
-                    --accept-source-agreements `
-                    --accept-package-agreements
-
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "$($tool.name) installed successfully."
-                } else {
-                    Write-Host "Failed to install $($tool.name). Exit code: $LASTEXITCODE"
-                }
-            } catch {
-                Write-Host "Exception occurred while installing $($tool.name): $_"
-            }
-          }
-
-            Write-Host "All installation attempts completed."
-
-      - name: Customize Windows
+      - name: Initialize Windows
         run: |
           $publicDesktop = "C:\Users\Public\Desktop"
           New-Item -ItemType Directory -Force -Path $publicDesktop | Out-Null
@@ -118,40 +79,37 @@ jobs:
 
           for /d %%u in (C:\Users\*) do (
               if exist "%%u\Desktop" (
-                  echo Deleting desktop shortcuts for user: %%u
                   for %%f in ("%%u\Desktop\*.lnk") do (
-                      echo Deleting: %%f
-                      del "%%f"
-                      timeout /t 0.5 >nul
+                      if exist "%%f" del "%%f" >nul 2>&1
                   )
               )
           )
 
-          if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures"
+          if not exist "%USERPROFILE%\Pictures" mkdir "%USERPROFILE%\Pictures" >nul 2>&1
 
           if not exist "%USERPROFILE%\Pictures\wallpaper.jpg" (
               powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-              Invoke-WebRequest "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png" -OutFile "%USERPROFILE%\Pictures\wallpaper.jpg"
+              "Invoke-WebRequest 'https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png' -OutFile '%USERPROFILE%\Pictures\wallpaper.jpg'" >nul 2>&1
           )
 
           for /f "tokens=1 delims=:" %%H in ("%time%") do set hour=%%H
-
           if %hour% GEQ 6 if %hour% LSS 18 (
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f >nul
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f >nul
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f >nul 2>&1
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f >nul 2>&1
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul 2>&1
           ) else (
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul
-              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
+              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul 2>&1
           )
 
-          taskkill /f /im explorer.exe >nul 2>&1
-          start explorer.exe
+          winget install --id=XP89DCGQ3K6VLD --silent >nul 2>&1
+          winget install --id=9NV4BS3L1H4S --silent >nul 2>&1
 
-          echo Done.
-          pause
-          '
+          taskkill /f /im explorer.exe >nul 2>&1
+          start explorer.exe >nul 2>&1
+
+          echo Done.'
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
       - name: Maintain Connection & Show Info
