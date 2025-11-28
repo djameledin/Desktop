@@ -11,6 +11,21 @@ jobs:
     steps:
       - name: Build remote desktop user
         run: |
+          $newName = "machine"
+          Write-Host "Current Computer Name: $env:COMPUTERNAME"
+
+          if ($env:COMPUTERNAME -ne $newName) {
+              try {
+                  Rename-Computer -NewName $newName -Force
+                  Write-Host "Computer renamed to '$newName'. A restart is required to apply the change."
+              } catch {
+                  Write-Error "Failed to rename computer: $_"
+                  exit 1
+              }
+          } else {
+              Write-Host "Computer name is already '$newName'. No changes made."
+          }
+        
           Add-Type -AssemblyName System.Security
 
           $chars = @{
@@ -41,6 +56,7 @@ jobs:
 
           echo "RDP_USER=user" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
+          echo "COMPUTER_NAME=$newName" >> $env:GITHUB_ENV
 
       - name: Install & Connect Tailscale
         run: |
