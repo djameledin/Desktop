@@ -81,7 +81,7 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
 }
 
 # List of apps to install using winget
-$appList = @('Wintoys', 'QuickLook')
+$appList = @('QuickLook')
 
 function Install-App {
     param([string]$appName)
