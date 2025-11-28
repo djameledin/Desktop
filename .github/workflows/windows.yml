@@ -77,7 +77,6 @@ jobs:
           # Check if the script is running as Administrator
           $runAsAdmin = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $runAsAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-              # Relaunch the script as Administrator
               $args = [System.Environment]::GetCommandLineArgs()
               Start-Process powershell -ArgumentList $args -Verb runAs
               exit
