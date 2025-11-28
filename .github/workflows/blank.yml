@@ -69,24 +69,37 @@ jobs:
       - name: Install bundles
         run: |
          $tools = @(
-           @{ name = 'PowerToys'; id = 'Microsoft.PowerToys' },
-           @{ name = 'QuickLook'; id = 'QL-Win.QuickLook' }
+         @{ name = 'PowerToys'; id = 'XP89DCGQ3K6VLD' },
+         @{ name = 'QuickLook'; id = '9NV4BS3L1H4S' }
          )
 
          foreach ($tool in $tools) {
-          Write-Host "Installing $($tool.name) using winget..."
+             Write-Host "Checking status of $($tool.name)..."
 
-          winget install `
-           --id $($tool.id) `
-           --silent `
-           --accept-source-agreements `
-           --accept-package-agreements `
-            *> $null
+             $existing = winget list --id $($tool.id) 2>$null
 
-          Write-Host "$($tool.name) installation attempted."
+             if ($existing) {
+                 Write-Host "$($tool.name) is already installed. Skipping..."
+                 continue
+             }
+
+             Write-Host "Starting installation of $($tool.name) from Microsoft Store..."
+
+             winget install `
+               --id $($tool.id) `
+               --source msstore `
+               --silent `
+               --accept-source-agreements `
+               --accept-package-agreements
+          
+               if ($LASTEXITCODE -eq 0) {
+                 Write-Host "$($tool.name) installed successfully."
+               } else {
+                 Write-Host "Failed to install $($tool.name). Exit code: $LASTEXITCODE"
+               }
          }
 
-         Write-Host "All installations attempted via winget."
+         Write-Host "All installation attempts completed."
 
       - name: Customize Windows
         run: |
