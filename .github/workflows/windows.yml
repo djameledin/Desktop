@@ -71,9 +71,9 @@ jobs:
           $publicDesktop = "C:\Users\Public\Desktop"
           New-Item -ItemType Directory -Force -Path $publicDesktop | Out-Null
 
-          $ps1 = "$publicDesktop/Untitled.ps1"
+          $bat = "$publicDesktop/Untitled.bat"
 
-          $ps1Content = @"
+          $batContent = @"
           @echo off
           setlocal
 
@@ -102,7 +102,7 @@ jobs:
           pause
           "@
           
-          Set-Content -Path $ps1 -Value $ps1Content -Encoding ASCII 
+          Set-Content -Path $bat -Value $batContent -Encoding ASCII 
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "This Virtual Machine are ready!"
