@@ -81,27 +81,28 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
 }
 
 # List of apps to install using winget
-$appList = @('QuickLook')
+$appList = @('XP89DCGQ3K6VD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD')
 
 function Install-App {
-    param([string]$appName)
+    param([string]$appID)
 
-    if (winget list --source=msstore | Select-String -SimpleMatch $appName) {
-        Write-Host "$appName is already installed."
+    # Check if app is installed
+    $isInstalled = winget list --exact --id=$appID 2>$null
+
+    if ($isInstalled) {
+        Write-Host "$appID is already installed."
         return
     }
 
     try {
-        winget install $appName --source=msstore --silent --accept-package-agreements --accept-source-agreements
-        Write-Host "$appName installed successfully."
+        winget install --id=$appID --silent --accept-package-agreements --accept-source-agreements
+        Write-Host "$appID installed successfully."
     } catch {
-        Write-Host "Failed to install $appName."
+        Write-Host "Failed to install $appID."
     }
 }
-
-# Install all apps in the list
 foreach ($app in $appList) {
-    Install-App -appName $app
+    Install-App -appID $app
 }
 
 # Restart Explorer to apply changes
