@@ -80,22 +80,23 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
     Write-Host "Dark theme applied."
 }
 
-# List of apps to install using winget
+# List of apps to install using Winget (IDs)
 $appList = @('XP89DCGQ3K6VD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD')
 
 function Install-App {
     param([string]$appID)
 
     # Check if app is installed
-    $isInstalled = winget list --exact --id=$appID 2>$null
+    $installedApp = winget list --id $appID --exact 2>$null | Select-String $appID
 
-    if ($isInstalled) {
+    if ($installedApp) {
         Write-Host "$appID is already installed."
         return
     }
 
     try {
-        winget install --id=$appID --silent --accept-package-agreements --accept-source-agreements
+        Write-Host "Installing $appID ..."
+        winget install --id $appID --silent --accept-package-agreements --accept-source-agreements
         Write-Host "$appID installed successfully."
     } catch {
         Write-Host "Failed to install $appID."
