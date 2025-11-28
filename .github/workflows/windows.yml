@@ -77,23 +77,6 @@ jobs:
           @echo off
           setlocal enabledelayedexpansion
 
-          powershell -Command ^
-            "if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { Start-Process -FilePath '%~f0' -Verb RunAs; exit }"
-
-          powershell -NoLogo -NoProfile -Command ^
-          "
-          function Install-App {
-              param([string]$name)
-              if (winget list | Select-String -SimpleMatch $name) {
-              }else {
-                  winget --install $name --source=msstore --silent --accept-package-agreements --accept-source-agreements
-              }
-          }
-          Install-App 'PowerToys'
-          Install-App 'WinToys'
-          Install-App 'QuickLook'
-          "
-
           for /d %%u in (C:\Users\*) do (
               if exist "%%u\Desktop" (
                   for %%f in ("%%u\Desktop\*.lnk") do (
@@ -124,7 +107,33 @@ jobs:
           taskkill /f /im explorer.exe >nul 2>&1
           start explorer.exe >nul 2>&1
 
-          echo Done.
+          powershell -NoLogo -NoProfile -Command ^
+          "if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+              Start-Process -FilePath '%~f0' -Verb RunAs
+              exit
+          }"
+
+          powershell -NoLogo -NoProfile -Command ^
+          "
+          function Install-App {
+              param([string]$name)
+              Write-Host \"Checking: $name...\"
+              if (winget list --exact --source msstore | Select-String -SimpleMatch $name) {
+                  Write-Host \"Already installed -> $name\" -ForegroundColor Green
+              }
+              else {
+                  Write-Host \"Installing -> $name\" -ForegroundColor Yellow
+                 winget install --exact $name --source=msstore --silent --accept-package-agreements --accept-source-agreements
+              }
+          }
+
+          Install-App 'PowerToys'
+          Install-App 'WinToys'
+          Install-App 'QuickLook'
+
+          Write-Host \"Done!\" -ForegroundColor Cyan
+          "
+          endlocal
           "@
 
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
