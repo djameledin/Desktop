@@ -83,8 +83,7 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
 winget source update
 # List of Microsoft Store app IDs to install
 $appList = @(
-    'XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD'
-)
+    'XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD', '9PDXGNCFSCZV')
 function Install-App {
     param([string]$appID)
 
