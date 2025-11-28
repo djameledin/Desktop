@@ -80,28 +80,31 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
     Write-Host "Dark theme applied."
 }
 
-# List of apps to install using Winget (IDs)
-$appList = @('XP89DCGQ3K6VD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD')
+# List of Microsoft Store app IDs to install
+$appList = @(
+    'XP89DCGQ3K6VD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD'
+)
 
 function Install-App {
     param([string]$appID)
 
-    # Check if app is installed
-    $installedApp = winget list --id $appID --exact 2>$null | Select-String $appID
+    $isInstalled = Get-AppxPackage | Where-Object { $_.PackageFamilyName -like "*$appID*" }
 
-    if ($installedApp) {
+    if ($isInstalled) {
         Write-Host "$appID is already installed."
         return
     }
 
     try {
         Write-Host "Installing $appID ..."
-        winget install --id $appID --silent --accept-package-agreements --accept-source-agreements
+        winget install --id=$appID --source=msstore --silent --accept-package-agreements --accept-source-agreements
         Write-Host "$appID installed successfully."
-    } catch {
+    }
+    catch {
         Write-Host "Failed to install $appID."
     }
 }
+# Install each app
 foreach ($app in $appList) {
     Install-App -appID $app
 }
