@@ -11,21 +11,6 @@ jobs:
     steps:
       - name: Build remote desktop user
         run: |
-          $newName = "machine"
-          Write-Host "Current Computer Name: $env:COMPUTERNAME"
-
-          if ($env:COMPUTERNAME -ne $newName) {
-              try {
-                  Rename-Computer -NewName $newName -Force
-                  Write-Host "Computer renamed to '$newName'. A restart is required to apply the change."
-              } catch {
-                  Write-Error "Failed to rename computer: $_"
-                  exit 1
-              }
-          } else {
-              Write-Host "Computer name is already '$newName'. No changes made."
-          }
-        
           Add-Type -AssemblyName System.Security
 
           $chars = @{
@@ -55,8 +40,7 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
 
           echo "RDP_USER=user" >> $env:GITHUB_ENV
-          echo "RDP_PASS=$password" >> $env:GITHUB_ENV
-          echo "COMPUTER_NAME=$newName" >> $env:GITHUB_ENV
+          echo "RDP_PASS=$password" >> $env:GITHUB_EV
 
       - name: Install & Connect Tailscale
         run: |
@@ -91,6 +75,17 @@ jobs:
 
           $batContent = @"
           @echo off
+          net session >nul 2>&1
+          if %errorlevel% neq 0 (
+              echo.
+              echo [!] This script must be run as Administrator... Restarting with admin privileges.
+              echo.
+              powershell -Command "Start-Process '%~f0' -Verb RunAs"
+              exit /b
+          )
+
+          echo Script is running with Administrator privileges!
+          
           setlocal enabledelayedexpansion
 
           for /d %%u in (C:\Users\*) do (
@@ -120,35 +115,43 @@ jobs:
              reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f >nul 2>&1
           )
 
-          taskkill /f /im explorer.exe >nul 2>&1
-          start explorer.exe >nul 2>&1
-
-          powershell -NoLogo -NoProfile -Command ^
-          "if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-              Start-Process -FilePath '%~f0' -Verb RunAs
-              exit
-          }"
-
           powershell -NoLogo -NoProfile -Command ^
           "
+          $apps = @('PowerToys', 'WinToys','QuickLook', 'Microsoft Sticky Notes')
+
           function Install-App {
               param([string]$name)
-              Write-Host \"Checking: $name...\"
+
+              Write-Host "Checking: $name..."
+    
               if (winget list --exact --source msstore | Select-String -SimpleMatch $name) {
-                  Write-Host \"Already installed -> $name\" -ForegroundColor Green
+                  Write-Host "Already installed -> $name" -ForegroundColor Green
+                  return
+          }
+
+              Write-Host "Installing -> $name" -ForegroundColor Yellow
+
+              try {
+                  winget install $name --source=msstore --silent --accept-package-agreements --accept-source-agreements
+                  if ($LASTEXITCODE -ne 0) {
+                      Write-Host "Skipped or failed to install -> $name" -ForegroundColor DarkYellow
+                  } else {
+                      Write-Host "Installed successfully -> $name" -ForegroundColor Green
               }
-              else {
-                  Write-Host \"Installing -> $name\" -ForegroundColor Yellow
-                 winget install --exact $name --source=msstore --silent --accept-package-agreements --accept-source-agreements
+          }
+              catch {
+                  Write-Host "Error installing -> $name. Skipping..." -ForegroundColor Red
               }
           }
 
-          Install-App 'PowerToys'
-          Install-App 'WinToys'
-          Install-App 'QuickLook'
-
-          Write-Host \"Done!\" -ForegroundColor Cyan
+          foreach ($app in $apps) {
+              Install-App $app
+          }
           "
+
+          taskkill /f /im explorer.exe >nul 2>&1
+          start explorer.exe >nul 2>&1
+
           endlocal
           "@
 
