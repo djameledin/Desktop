@@ -87,6 +87,41 @@ Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
 Start-Process explorer.exe
 Write-Host "Explorer restarted successfully."
 
+# Add the names of applications you want to KEEP
+$Exclusions = @(
+    "Microsoft Edge",
+    "Windows Terminal",
+    "Microsoft .NET",
+    "Windows",
+    "NVIDIA",
+    "Intel",
+    "Realtek",
+    "Microsoft OneDrive",
+    "Microsoft Store"
+)
+
+# Get all installed apps using winget
+$allApps = winget list | Select-String "^\S" | ForEach-Object {
+    ($_ -split '\s{2,}')[0]
+}
+
+# Filter apps that are NOT in the exclusion list
+$appsToRemove = $allApps | Where-Object {
+    $app = $_
+    -not ($Exclusions | ForEach-Object { $app -like "*$_*" })
+}
+
+Write-Host "The following apps will be removed automatically:" -ForegroundColor Yellow
+$appsToRemove | ForEach-Object { Write-Host " - $_" }
+
+# Auto uninstall without confirmation
+foreach ($app in $appsToRemove) {
+    Write-Host "Uninstalling: $app" -ForegroundColor Red
+    winget uninstall --exact --silent --name "$app"
+}
+
+Write-Host "Uninstallation process completed." -ForegroundColor Green
+
 
 winget source update
 $appList = @('XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PDXGNCFSCZV')
