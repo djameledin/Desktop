@@ -25,7 +25,6 @@ if (-not (Test-Path $picturesPath)) {
         exit
     }
 }
-
 # Download the wallpaper image if it doesn't exist
 $wallpaperPath = "$picturesPath\wallpaper.jpg"
 if (-not (Test-Path $wallpaperPath)) {
@@ -38,7 +37,6 @@ if (-not (Test-Path $wallpaperPath)) {
         exit
     }
 }
-
 # Verify if the wallpaper exists now
 if (Test-Path $wallpaperPath) {
     Write-Host "The wallpaper file exists at: $wallpaperPath"
@@ -65,12 +63,14 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
 
 # Set Accent Color to Automatic
 $themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+
 try {
     Set-ItemProperty -Path $themePath -Name "AutoColorization" -Value 1
-    Write-Host "Accent color set to Automatic."
+    Write-Host "Accent color set to Automatic successfully."
 } catch {
     Write-Host "Failed to set Accent color to Automatic."
 }
+
 
 # Restart Explorer to apply changes
 Write-Host "Restarting Explorer..."
@@ -88,7 +88,6 @@ public class Wallpaper {
 }
 '@
 $setWallpaperResult = [Wallpaper]::SystemParametersInfo(20, 0, $wallpaperPath, 3)
-
 # Verify wallpaper change result
 if ($setWallpaperResult) {
     Write-Host "Wallpaper set successfully."
@@ -97,18 +96,15 @@ if ($setWallpaperResult) {
 }
 
 winget source update
-
 $appList = @('XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PDXGNCFSCZV')
 function Install-App {
     param([string]$appID)
-
     $isInstalled = Get-AppxPackage | Where-Object { $_.PackageFamilyName -like "*$appID*" }
 
     if ($isInstalled) {
         Write-Host "$appID is already installed."
         return
     }
-
     try {
         Write-Host "Installing $appID ..."
         winget install --id=$appID --source=msstore --silent --accept-package-agreements --accept-source-agreements
