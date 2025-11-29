@@ -89,7 +89,7 @@ Write-Host "Explorer restarted successfully."
 
 
 winget source update
-$appList = @('XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD', '9PDXGNCFSCZV')
+$appList = @('XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PDXGNCFSCZV')
 function Install-App {
     param([string]$appID)
 
