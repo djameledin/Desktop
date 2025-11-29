@@ -44,15 +44,6 @@ function Apply-ThemeBasedOnTime {
 Apply-ThemeBasedOnTime
 
 
-# disable recently apps
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount" `
-    -Name "$$windows.data.startmenu_8wekyb3d8bbwe!StartMenuExperienceHost" `
-    -Value ( )
-# disable show recommended files
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
-    -Name "Start_TrackDocs" -Value 0
-    
-
 # Download Wallpaper
 function Download-Wallpaper {
     param(
