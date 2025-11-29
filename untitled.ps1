@@ -58,9 +58,15 @@ function Download-Wallpaper {
     if (Test-NetConnection -InformationLevel Quiet) {
         if (-not (Test-Path $WallpaperPath)) {
             try {
-                Invoke-WebRequest $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
-            } catch {}
+                # Use a browser-like User-Agent to allow download
+                Invoke-WebRequest -Uri $WallpaperURL -OutFile $WallpaperPath -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -ErrorAction Stop
+            } catch {
+                Write-Host "Failed to download wallpaper."
+                return
+            }
         }
+    } else {
+        Write-Host "No internet connection. Skipping wallpaper download."
     }
     return $WallpaperPath
 }
