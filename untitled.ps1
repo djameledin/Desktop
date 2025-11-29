@@ -55,16 +55,18 @@ function Download-Wallpaper {
         New-Item -ItemType Directory -Path $PicturesPath | Out-Null
     }
 
-    if (-not (Test-Path $WallpaperPath)) {
-        try {
-            Invoke-WebRequest $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
-        } catch {
-            Write-Host "Failed to download the wallpaper. Please check the URL or your network connection."
-            return
+    if (Test-NetConnection -InformationLevel Quiet) {
+        if (-not (Test-Path $WallpaperPath)) {
+            try {
+                Invoke-WebRequest $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
+            } catch {}
         }
     }
+
     return $WallpaperPath
 }
+
+# Example: pass a custom wallpaper URL
 $WallpaperPath = Download-Wallpaper -WallpaperURL "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png"
 
 # Restart Explorer
