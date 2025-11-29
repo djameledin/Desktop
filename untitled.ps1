@@ -80,6 +80,28 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
     Write-Host "Dark theme applied."
 }
 
+# List of programs to uninstall
+$programs = @("Azure Arc Setup", "Azure Cosmos DB Emulator", "Blend for Virtual Studio 2022")
+
+foreach ($prog in $programs) {
+    
+    # Find installed programs that match the name
+    $apps = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$prog*" }
+
+    if ($apps) {
+        
+        # Uninstall each matched program
+        foreach ($app in $apps) {
+            Write-Host "Uninstalling $($app.Name)..."
+            $app.Uninstall()
+        }
+
+    } else {
+        # If the program was not found
+        Write-Host "Program '$prog' not found."
+    }
+}
+
 winget source update
 # List of Microsoft Store app IDs to install
 $appList = @(
