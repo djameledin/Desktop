@@ -88,17 +88,7 @@ if ($setWallpaperResult) {
 }
 
 # Add the names of applications you want to KEEP
-$Exclusions = @(
-    "Microsoft Edge",
-    "Windows Terminal",
-    "Tailscale",
-    "Windows",
-    "NVIDIA",
-    "Intel",
-    "Realtek",
-    "Microsoft OneDrive",
-    "Microsoft Store"
-)
+$Exclusions = @("Microsoft Edge", "Windows Terminal", "Tailscale", "Windows Subsystem for Linux", "Windows Security", "Windows Package Manager Source (winget) V2", "Microsoft Edge WebView2 Runtime", "Azure Arc Setup", "Server Manager")
 
 # Get all installed apps using winget
 $allApps = winget list | Select-String "^\S" | ForEach-Object {
