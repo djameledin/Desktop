@@ -91,7 +91,7 @@ Write-Host "Explorer restarted successfully."
 $Exclusions = @(
     "Microsoft Edge",
     "Windows Terminal",
-    "Microsoft .NET",
+    "Tailscale",
     "Windows",
     "NVIDIA",
     "Intel",
