@@ -47,23 +47,6 @@ if (Test-Path $wallpaperPath) {
     exit
 }
 
-# Set the downloaded image as wallpaper
-Add-Type @'
-using System.Runtime.InteropServices;
-public class Wallpaper {
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-}
-'@
-$setWallpaperResult = [Wallpaper]::SystemParametersInfo(20, 0, $wallpaperPath, 3)
-
-# Verify wallpaper change result
-if ($setWallpaperResult) {
-    Write-Host "Wallpaper set successfully."
-} else {
-    Write-Host "Failed to set the wallpaper."
-}
-
 # Set the theme based on the current hour
 $currentHour = (Get-Date).Hour
 $themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
@@ -86,6 +69,23 @@ Start-Sleep -Milliseconds 300
 Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
 Start-Process explorer.exe
 Write-Host "Explorer restarted successfully."
+
+# Set the downloaded image as wallpaper
+Add-Type @'
+using System.Runtime.InteropServices;
+public class Wallpaper {
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+}
+'@
+$setWallpaperResult = [Wallpaper]::SystemParametersInfo(20, 0, $wallpaperPath, 3)
+
+# Verify wallpaper change result
+if ($setWallpaperResult) {
+    Write-Host "Wallpaper set successfully."
+} else {
+    Write-Host "Failed to set the wallpaper."
+}
 
 # Add the names of applications you want to KEEP
 $Exclusions = @(
