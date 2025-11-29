@@ -81,7 +81,7 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
 }
 
 # List of programs to uninstall
-$programs = @("Azure Cosmos DB Emulator", "Blend for Virtual Studio 2022", "Feedback Hub", "Firefox", "Google Chrome")
+$programs = @("Azure Cosmos DB Emulator", "Blend for Visual Studio 2022", "Feedback Hub", "Firefox", "Google Chrome")
 
 foreach ($prog in $programs) {
     
