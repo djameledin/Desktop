@@ -42,6 +42,14 @@ function Apply-ThemeBasedOnTime {
 Apply-ThemeBasedOnTime
 
 
+# disable Show recently added apps
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackDocs" -Value 0
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackProgs" -Value 0
+
+# disable Show recommended files
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackDocs" -Value 0
+
+
 # Download Wallpaper
 function Download-Wallpaper {
     param(
@@ -68,9 +76,11 @@ function Download-Wallpaper {
 # Example: pass a custom wallpaper URL
 $WallpaperPath = Download-Wallpaper -WallpaperURL "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png"
 
+
 # Restart Explorer
 Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
 Start-Process explorer.exe
+
 
 # Set Wallpaper
 function Set-Wallpaper {
