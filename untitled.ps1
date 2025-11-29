@@ -80,30 +80,15 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
     Write-Host "Dark theme applied."
 }
 
-# List of programs to uninstall
-$programs = @("Azure Cosmos DB Emulator", "Blend for Visual Studio 2022", "Feedback Hub", "Firefox", "Google Chrome")
+# Restart Explorer to apply changes
+Write-Host "Restarting Explorer..."
+Start-Sleep -Milliseconds 300
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+Start-Process explorer.exe
+Write-Host "Explorer restarted successfully."
 
-foreach ($prog in $programs) {
-    
-    # Find installed programs that match the name
-    $apps = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$prog*" }
-
-    if ($apps) {
-        
-        # Uninstall each matched program
-        foreach ($app in $apps) {
-            Write-Host "Uninstalling $($app.Name)..."
-            $app.Uninstall()
-        }
-
-    } else {
-        # If the program was not found
-        Write-Host "Program '$prog' not found."
-    }
-}
 
 winget source update
-# List of Microsoft Store app IDs to install
 $appList = @('XP89DCGQ3K6VLD', '9P8LTPGCBZXD', '9NV4BS3L1H4S', '9PM860492SZD', '9PDXGNCFSCZV')
 function Install-App {
     param([string]$appID)
@@ -124,14 +109,6 @@ function Install-App {
         Write-Host "Failed to install $appID."
     }
 }
-# Install each app
 foreach ($app in $appList) {
     Install-App -appID $app
 }
-
-# Restart Explorer to apply changes
-Write-Host "Restarting Explorer..."
-Start-Sleep -Milliseconds 300
-Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-Start-Process explorer.exe
-Write-Host "Explorer restarted successfully."
