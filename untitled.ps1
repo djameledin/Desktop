@@ -55,12 +55,11 @@ function Download-Wallpaper {
         New-Item -ItemType Directory -Path $PicturesPath | Out-Null
     }
 
-    if (Test-NetConnection -InformationLevel Quiet) {
-        if (-not (Test-Path $WallpaperPath)) {
-            try {
-                Invoke-WebRequest $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
-            } catch {}
-        }
+    try {
+        Invoke-WebRequest -Uri $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
+        Write-Host "Wallpaper downloaded successfully."
+    } catch {
+        Write-Warning "Failed to download wallpaper. Please check your internet connection."
     }
 
     return $WallpaperPath
