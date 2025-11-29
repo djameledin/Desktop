@@ -63,6 +63,16 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
     Write-Host "Dark theme applied."
 }
 
+# Set Accent Color to Automatic
+$themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+try {
+    Set-ItemProperty -Path $themePath -Name "AutoColorization" -Value 1
+    Set-ItemProperty -Path $themePath -Name "ColorPrevalence" -Value 1
+    Write-Host "Accent color set to Automatic successfully."
+} catch {
+    Write-Host "Failed to set Accent color to Automatic."
+}
+
 # Restart Explorer to apply changes
 Write-Host "Restarting Explorer..."
 Start-Sleep -Milliseconds 300
