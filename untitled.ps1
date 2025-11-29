@@ -15,7 +15,7 @@ Get-ChildItem 'C:\Users' -Directory | ForEach-Object {
 }
 
 # Ensure the 'Pictures' directory exists
-$picturesPath = "C:\Users\runneradmin\Pictures"
+$picturesPath = "C:\Users\Public\Pictures"
 if (-not (Test-Path $picturesPath)) {
     try {
         New-Item -ItemType Directory -Path $picturesPath | Out-Null
