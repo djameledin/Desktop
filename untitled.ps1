@@ -67,8 +67,7 @@ if ($currentHour -ge 6 -and $currentHour -lt 18) {
 $themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 try {
     Set-ItemProperty -Path $themePath -Name "AutoColorization" -Value 1
-    Set-ItemProperty -Path $themePath -Name "ColorPrevalence" -Value 1
-    Write-Host "Accent color set to Automatic successfully."
+    Write-Host "Accent color set to Automatic."
 } catch {
     Write-Host "Failed to set Accent color to Automatic."
 }
