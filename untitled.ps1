@@ -6,6 +6,7 @@ if (-not $runAsAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administr
     exit
 }
 
+
 # Remove Desktop Shortcuts with Exceptions
 function Remove-DesktopShortcuts {
     $DeleteShortcuts = $true
@@ -23,6 +24,7 @@ function Remove-DesktopShortcuts {
     }
 }
 Remove-DesktopShortcuts
+
 
 # Apply Theme Based on Current 
 function Apply-ThemeBasedOnTime {
@@ -42,13 +44,14 @@ function Apply-ThemeBasedOnTime {
 Apply-ThemeBasedOnTime
 
 
-# disable Show recently added apps
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackDocs" -Value 0
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackProgs" -Value 0
-
-# disable Show recommended files
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackDocs" -Value 0
-
+# disable recently apps
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount" `
+    -Name "$$windows.data.startmenu_8wekyb3d8bbwe!StartMenuExperienceHost" `
+    -Value ( )
+# disable show recommended files
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+    -Name "Start_TrackDocs" -Value 0
+    
 
 # Download Wallpaper
 function Download-Wallpaper {
