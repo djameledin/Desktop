@@ -13,7 +13,6 @@ function Remove-DesktopShortcuts {
     $ExcludedShortcuts = @("desktop.ini","This PC.lnk","Recycle Bin.lnk")
 
     if (-not $DeleteShortcuts) { return }
-
     Get-ChildItem 'C:\Users' -Directory | ForEach-Object {
         $desktopPath = Join-Path $_.FullName 'Desktop'
         if (Test-Path $desktopPath) {
@@ -23,7 +22,6 @@ function Remove-DesktopShortcuts {
         }
     }
 }
-Remove-DesktopShortcuts
 
 
 # Apply Theme Based on Current 
@@ -56,24 +54,15 @@ function Download-Wallpaper {
     if (-not (Test-Path $PicturesPath)) {
         New-Item -ItemType Directory -Path $PicturesPath | Out-Null
     }
-
     try {
         Invoke-WebRequest -Uri $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
         Write-Host "Wallpaper downloaded successfully."
     } catch {
         Write-Warning "Failed to download wallpaper. Please check your internet connection."
     }
-
     return $WallpaperPath
 }
-
-# Example: pass a custom wallpaper URL
 $WallpaperPath = Download-Wallpaper -WallpaperURL "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png"
-
-
-# Restart Explorer
-Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-Start-Process explorer.exe
 
 
 # Set Wallpaper
@@ -91,6 +80,13 @@ public class Wallpaper {
         [Wallpaper]::SystemParametersInfo(20, 0, $WallpaperPath, 3) | Out-Null
     }
 }
+
+
+# Restart Explorer
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+Start-Process explorer.exe
+
+Remove-DesktopShortcuts
 Set-Wallpaper -WallpaperPath $WallpaperPath
 
 
@@ -119,6 +115,5 @@ function Install-StoreApps {
     }
 }
 
-# Example: pass a custom app list
 $CustomApps = @('XP89DCGQ3K6VLD','9PDXGNCFSCZV') 
 Install-StoreApps -AppList $CustomApps
