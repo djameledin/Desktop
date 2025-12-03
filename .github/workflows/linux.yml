@@ -12,7 +12,8 @@ jobs:
       - name: Generate user with random password
         shell: bash
         run: |
-          password=$(tr -dc 'A-Za-z0-9!@#$%^&*()_+=' </dev/urandom | head -c 16)
+          # Generate secure password safely
+          password=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9!@#$%^&*()_+=' | head -c 16)
 
           sudo useradd -m -s /bin/bash user
           echo "user:$password" | sudo chpasswd
