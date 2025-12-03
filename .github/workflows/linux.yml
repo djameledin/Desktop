@@ -1,0 +1,82 @@
+name: Linux environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3600
+
+    steps:
+      - name: Generate user with random password
+        shell: bash
+        run: |
+          password=$(tr -dc 'A-Za-z0-9!@#$%^&*()_+=' </dev/urandom | head -c 16)
+
+          sudo useradd -m -s /bin/bash user
+          echo "user:$password" | sudo chpasswd
+          sudo usermod -aG sudo user
+
+          echo "RDP_USER=user" >> $GITHUB_ENV
+          echo "RDP_PASS=$password" >> $GITHUB_ENV
+
+      - name: Install & Connect Tailscale
+        shell: bash
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-linux-${GITHUB_RUN_ID}
+
+          retries=0
+          while [ $retries -lt 15 ]; do
+            tsIP=$(tailscale ip -4)
+            if [ ! -z "$tsIP" ]; then
+              break
+            fi
+            sleep 5
+            retries=$((retries+1))
+          done
+
+          if [ -z "$tsIP" ]; then
+            echo "Tailscale IP not assigned"
+            exit 1
+          fi
+
+          echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
+
+      - name: Install Ubuntu Desktop Minimal + xRDP
+        shell: bash
+        run: |
+          sudo apt update
+
+          echo "Installing Ubuntu Desktop Minimal..."
+          sudo apt install -y ubuntu-desktop-minimal
+
+          echo "Installing xRDP..."
+          sudo apt install -y xrdp
+          sudo systemctl enable xrdp
+          sudo systemctl start xrdp
+
+          # Allow login for our custom user
+          sudo adduser xrdp ssl-cert
+
+          # Fix black screen issue
+          sudo bash -c 'echo "gnome-session" > /home/user/.xsession'
+          sudo chown user:user /home/user/.xsession
+
+          # Permit RDP on firewall
+          sudo ufw allow 3389/tcp || true
+
+          echo "xRDP + Ubuntu Desktop Minimal installation completed."
+
+      - name: Keep Alive & Show Info
+        shell: bash
+        run: |
+          echo ""
+          echo "This Virtual Machine are Ready!"
+          echo " Username: $RDP_USER ; Password: $RDP_PASS"
+
+          while true; do
+            echo "[ $(date) ] Keep Alive..."
+            sleep 300
+          done
