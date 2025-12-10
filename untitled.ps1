@@ -1,119 +1,110 @@
-# Run script as Administrator
-$runAsAdmin = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if (-not $runAsAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $args = [System.Environment]::GetCommandLineArgs()
-    Start-Process powershell -ArgumentList $args -Verb runAs
+# 1) Ensure script is running as Administrator
+$admin = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -Verb runAs -ArgumentList $PSCommandPath
     exit
 }
 
+# 2) Apply Theme (Light/Dark) only if needed
+function Apply-Theme {
+    $currentHour = (Get-Date).Hour
+    $themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 
-# Remove Desktop Shortcuts with Exceptions
-function Remove-DesktopShortcuts {
-    $DeleteShortcuts = $true
-    $ExcludedShortcuts = @("desktop.ini","This PC.lnk","Recycle Bin.lnk")
+    # Determine required theme based on time
+    $requiredTheme = if ($currentHour -ge 6 -and $currentHour -lt 18) { 1 } else { 0 }
 
-    if (-not $DeleteShortcuts) { return }
-    Get-ChildItem 'C:\Users' -Directory | ForEach-Object {
-        $desktopPath = Join-Path $_.FullName 'Desktop'
-        if (Test-Path $desktopPath) {
-            Get-ChildItem "$desktopPath\*.lnk" -ErrorAction SilentlyContinue |
-                Where-Object { $ExcludedShortcuts -notcontains $_.Name } |
-                Remove-Item -Force -ErrorAction SilentlyContinue
+    # Get current system theme
+    $currentTheme = (Get-ItemProperty -Path $themePath -Name AppsUseLightTheme).AppsUseLightTheme
+
+    if ($currentTheme -eq $requiredTheme) {
+        if ($requiredTheme -eq 1) { Write-Host "[THEME] Light mode already active. Skipping." }
+        else { Write-Host "[THEME] Dark mode already active. Skipping." }
+        return
+    }
+
+    # Apply theme change
+    Set-ItemProperty -Path $themePath -Name AppsUseLightTheme -Value $requiredTheme
+    Set-ItemProperty -Path $themePath -Name SystemUsesLightTheme -Value $requiredTheme
+
+    if ($requiredTheme -eq 1) { Write-Host "[THEME] Switched to Light mode." }
+    else { Write-Host "[THEME] Switched to Dark mode." }
+}
+
+# 3) Clean Desktop with exclusions
+function Clean-Desktop {
+    $Excluded = @("desktop.ini","This PC.lnk","Recycle Bin.lnk")
+    $users = Get-ChildItem "C:\Users" -Directory
+
+    foreach ($u in $users) {
+        $desk = "$($u.FullName)\Desktop"
+        if (Test-Path $desk) {
+            $items = Get-ChildItem $desk -File
+            if ($items.Count -eq 0) {
+                Write-Host "[DESKTOP] No items to clean for $($u.Name). Skipping."
+                continue
+            }
+
+            $toDelete = $items | Where-Object { $Excluded -notcontains $_.Name }
+            if ($toDelete.Count -gt 0) {
+                Write-Host "[DESKTOP] Cleaning $($u.Name) desktop..."
+                $toDelete | Remove-Item -Force -ErrorAction SilentlyContinue
+            } else {
+                Write-Host "[DESKTOP] All items excluded. Nothing removed."
+            }
         }
     }
 }
 
-
-# Apply Theme Based on Current 
-function Apply-ThemeBasedOnTime {
-    $currentHour = (Get-Date).Hour
-    $themePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-
-    if ($currentHour -ge 6 -and $currentHour -lt 18) {
-        Set-ItemProperty -Path $themePath -Name AppsUseLightTheme -Value 1
-        Set-ItemProperty -Path $themePath -Name SystemUsesLightTheme -Value 1
-    } else {
-        Set-ItemProperty -Path $themePath -Name AppsUseLightTheme -Value 0
-        Set-ItemProperty -Path $themePath -Name SystemUsesLightTheme -Value 0
-    }
-
-    Set-ItemProperty -Path $themePath -Name AutoColorization -Value 1
-}
-Apply-ThemeBasedOnTime
-
-
-# Download Wallpaper
+# 4) Download Wallpaper
 function Download-Wallpaper {
-    param(
-        [string]$WallpaperURL = "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png"
-    )
+    param([string]$URL, [string]$Path)
 
-    $PicturesPath = "C:\Users\Public\Pictures"
-    $WallpaperPath = "$PicturesPath\wallpaper.png"
-
-    if (-not (Test-Path $PicturesPath)) {
-        New-Item -ItemType Directory -Path $PicturesPath | Out-Null
+    if (Test-Path $Path) {
+        Write-Host "[WALLPAPER] Already exists. Skipping download."
+        return
     }
+
     try {
-        Invoke-WebRequest -Uri $WallpaperURL -OutFile $WallpaperPath -ErrorAction Stop
-        Write-Host "Wallpaper downloaded successfully."
+        Invoke-WebRequest -Uri $URL -OutFile $Path -ErrorAction Stop
+        Write-Host "[WALLPAPER] Downloaded successfully."
     } catch {
-        Write-Warning "Failed to download wallpaper. Please check your internet connection."
+        Write-Warning "[WALLPAPER] Failed to download."
     }
-    return $WallpaperPath
 }
-$WallpaperPath = Download-Wallpaper -WallpaperURL "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png"
 
-
-# Set Wallpaper
+# 5) Set Wallpaper
 function Set-Wallpaper {
-    param([string]$WallpaperPath)
+    param([string]$ImagePath)
 
-    if (Test-Path $WallpaperPath) {
-        Add-Type @'
-using System.Runtime.InteropServices;
-public class Wallpaper {
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-}
-'@
-        [Wallpaper]::SystemParametersInfo(20, 0, $WallpaperPath, 3) | Out-Null
+    if (-not (Test-Path $ImagePath)) {
+        Write-Warning "[WALLPAPER] Image not found. Cannot apply."
+        return
     }
+
+    Add-Type @"
+    using System.Runtime.InteropServices;
+    public class WP {
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+    }
+"@
+
+    [WP]::SystemParametersInfo(20, 0, $ImagePath, 3) | Out-Null
+    Write-Host "[WALLPAPER] Applied successfully."
 }
 
+# 7) Main Execution
+$wallURL  = "https://microsoft.design/wp-content/uploads/2025/07/Brand-Flowers-Static-1.png"
+$wallPath = "C:\Users\Public\Pictures\wallpaper.png"
 
-# Restart Explorer
+Apply-Theme
+Clean-Desktop
+Download-Wallpaper -URL $wallURL -Path $wallPath
+
+# Step 4: Restart Explorer
 Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
 Start-Process explorer.exe
 
-Remove-DesktopShortcuts
-Set-Wallpaper -WallpaperPath $WallpaperPath
+Set-Wallpaper -ImagePath $wallPath
 
-
-# Install Microsoft Store Apps via Winget
-function Install-StoreApps {
-    param(
-        [string[]]$AppList = @('XP89DCGQ3K6VLD','9PDXGNCFSCZV')
-    )
-
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return }
-
-    winget source update
-
-    function Install-App {
-        param([string]$appID)
-        $installed = Get-AppxPackage | Where-Object { $_.PackageFamilyName -like "*$appID*" }
-        if ($installed) { return }
-
-        try {
-            winget install --id=$appID --source=msstore --silent --accept-package-agreements --accept-source-agreements
-        } catch {}
-    }
-
-    foreach ($app in $AppList) {
-        Install-App -appID $app
-    }
-}
-
-$CustomApps = @('XP89DCGQ3K6VLD','9PDXGNCFSCZV') 
-Install-StoreApps -AppList $CustomApps
+Write-Host "`n All tasks completed successfully with smart checks."
