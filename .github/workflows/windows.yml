@@ -68,34 +68,25 @@ jobs:
 
       - name: Initialize Windows
         run: |
-          $publicDesktop = "C:\Users\Public\Desktop"
-          New-Item -ItemType Directory -Force -Path $publicDesktop | Out-Null
+          # Script URL
+          $ScriptUrl = "https://raw.githubusercontent.com/djameledin/Desktop/refs/heads/main/untitled.ps1"
 
-          $bat = "$publicDesktop/Untitled.bat"
+          # Script save location (placed in a public folder accessible by all users)
+          $DownloadPath = "C:\ProgramData\startup_script.ps1"
 
-          $batContent = @"
-          @echo off
-          setlocal
+          # Run command without confirmation
+          $Command = "powershell -WindowStyle Hidden -Command `"Invoke-WebRequest -Uri '$ScriptUrl' -OutFile '$DownloadPath'; powershell -ExecutionPolicy Bypass -File '$DownloadPath'`""
 
-          REM --- Check if running as admin ---
-          net session >nul 2>&1
-          if %errorLevel% NEQ 0 (
-              echo Running as administrator...
-              powershell -Command "Start-Process '%~f0' -Verb RunAs"
-              exit /b
-          )
+          # Registry entry name
+          $RegistryName = 'Run_Script_For_All_Users'
 
-          REM --- URL of the PowerShell script ---
-          set "URL=https://raw.githubusercontent.com/djameledin/Desktop/refs/heads/main/untitled.ps1"
+          # Registry path for all users
+          $RegistryPath = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'
 
-          REM --- Run PowerShell script silently ---
-          powershell -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -Command ^
-              "(Invoke-WebRequest -Uri '%URL%' -UseBasicParsing).Content | Invoke-Expression"
+          # Create the entry (requires administrator privileges)
+          Set-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $Command
 
-          exit
-          "@
-          
-          Set-Content -Path $bat -Value $batContent -Encoding ASCII 
+          Write-Host "The script will be downloaded and executed automatically for all users at startup."
       - name: Maintain Connection & Show Info
         run: |
           Write-Host "This Virtual Machine are ready!"
